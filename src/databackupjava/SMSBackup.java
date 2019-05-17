@@ -14,13 +14,14 @@ class SMSBackup {
 
     public static void main(String[] args) throws IOException, SQLException {
 
-        //Read through the new text messages.
+        // Get a connection to the file that contains the text messages.
         Scanner keyboard = new Scanner(System.in);
         File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\SMS\\sms-20190516103355.xml");
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
         }
 
+        // Request confirmation from the user before attempting to back up the text messages.
         Scanner input = new Scanner(System.in);
         System.out.println("Please confirm that you would like to backup your text messages (y/n)");
         String response = input.next();
@@ -43,13 +44,14 @@ class SMSBackup {
                 try {
 
                     String currLine;  //The line in the file currently being viewed by the program. The xml file is
-                    //broken up by lines; so, one line represents a single text message.
+                    // broken up by lines; so, one line represents a single SMS text message. MMS messages (text messages
+                    // that contain pictures or contain a lot of text) span multiple lines and are handled a little differently. 
 
                     String mmsContactName = "";
-                    int mmsIncoming = 1;  //1 means true (the message is from someone to me); 0 means false (the message was sent from my phone to someone else)
-                    String mmsDate = "";
-                    String mmsText = "";
-                    boolean mmsContainsText = false;
+                    int mmsIncoming = 1;  // 1 = true (the message is from someone to me); 0 = false (the message was sent from my phone to someone else)
+                    String mmsDate = "";  // The date the mms message was sent.
+                    String mmsText = "";  // Text contained in the mms message.
+                    boolean mmsContainsText = false;  // Whether or not the mms contains text. If it does not contain text.
 
                     while ((currLine = br.readLine()) != null) {
                         if (currLine != null && currLine.contains("body=\"")) {  //If the line starts with "body="", then it is a line that contains a text message.
