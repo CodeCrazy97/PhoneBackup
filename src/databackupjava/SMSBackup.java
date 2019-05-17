@@ -205,10 +205,8 @@ class SMSBackup {
                                 mmsContainsText = true;
                                 mmsText = currLine.substring(currLine.indexOf("text=") + 6, currLine.indexOf("/>") - 2);
                             }
-
-//////////////////////////////////////////////////////////////////////////////////
-/////////////Message doesn't exist, so continue on to insert.       //////////////
-//////////////////////////////////////////////////////////////////////////////////
+                            
+                            // Reached end of mms message.
                             if (mmsContainsText && currLine.length() >= 6 && currLine.contains("</mms>")) {  // end of mms - try inserting into database if this mms message contained text
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -216,7 +214,7 @@ class SMSBackup {
 //////////////////////////////////////////////////////////////////////////////////
                                 mmsContainsText = false;  // Reset so we don't accidentally reinsert a message.
                                 if (messageExists(mmsDate, mmsContactName)) {
-                                    continue;
+                                    continue;  // Exists, so go on to next mms message.
                                 }
 
                                 try {
@@ -251,6 +249,8 @@ class SMSBackup {
         }
     }
 
+    // Some strange things happen to text messages when they are turned into XML!
+    // Below, I fix odd characters and turn them into what they should be.
     public static String fixSMSString(String message) {
         message = message.replace("&#55357;&#56832;", "☺");
         message = message.replace("�", "\'");  //Replace all � with apostraphes.
