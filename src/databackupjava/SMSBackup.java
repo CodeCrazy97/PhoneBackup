@@ -208,13 +208,13 @@ class SMSBackup {
                             }
 
                             // Reached end of mms message.
-                            if (mmsContainsText && currLine.length() >= 6 && currLine.contains("</mms>")) {  // end of mms - try inserting into database if this mms message contained text
+                            if (currLine.length() >= 6 && currLine.contains("</mms>")) {  // end of mms - try inserting into database if this mms message contained text
 
 //////////////////////////////////////////////////////////////////////////////////
 /////////////Check to see if the message already exists in the database.//////////
 //////////////////////////////////////////////////////////////////////////////////
-                                mmsContainsText = false;  // Reset so we don't accidentally reinsert a message.
                                 if (messageExists(mmsDate, mmsContactName)) {
+                                    mmsContainsText = false;  //reset for next iteration
                                     continue;  // Exists, so go on to next mms message.
                                 }
 
@@ -223,9 +223,14 @@ class SMSBackup {
 
                                     //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
                                     mmsText = fixSMSString(mmsText);
-
-                                    String sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + mmsDate + "'); ";
-
+                                    String sql = "";
+                                    if (mmsContainsText) {
+                                        sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + mmsDate + "'); ";
+                                    } else {
+                                        sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + mmsDate + "'); ";
+                                    }
+                                    
+                                    mmsContainsText = false;  // Reset so we don't accidentally reinsert a message.
                                     PreparedStatement preparedStatement = conn.prepareStatement(sql);
                                     preparedStatement.executeUpdate();
                                     System.out.println("Successfully inserted a new MMS message: " + sql);
@@ -234,33 +239,7 @@ class SMSBackup {
                                 } catch (ClassNotFoundException cnfe) {
                                     System.out.println("ClassNotFoundException: " + cnfe);
                                 }
-                            } else if (!mmsContainsText && currLine.length() >= 6 && currLine.contains("</mms>")) { // did not contain text. Still, would want to indicate that a picture was sent
-
-//////////////////////////////////////////////////////////////////////////////////
-/////////////Check to see if the message already exists in the database.//////////
-//////////////////////////////////////////////////////////////////////////////////
-                                mmsContainsText = false;  // Reset so we don't accidentally reinsert a message.
-                                if (messageExists(mmsDate, mmsContactName)) {
-                                    continue;  // Exists, so go on to next mms message.
-                                }
-
-                                try {
-                                    Class.forName("com.mysql.jdbc.Driver");
-
-                                    //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
-                                    mmsText = fixSMSString(mmsText);
-
-                                    String sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + mmsDate + "'); ";
-
-                                    PreparedStatement preparedStatement = conn.prepareStatement(sql);
-                                    preparedStatement.executeUpdate();
-                                    System.out.println("Successfully inserted a new MMS message: " + sql);
-                                } catch (SQLException sqle) {
-                                    System.out.println("SQL Exception ...: " + sqle);
-                                } catch (ClassNotFoundException cnfe) {
-                                    System.out.println("ClassNotFoundException: " + cnfe);
-                                }
-                            }
+                            } 
                         }
                     }
                 } finally {
