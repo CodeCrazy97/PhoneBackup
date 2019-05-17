@@ -16,9 +16,10 @@ class SMSBackup {
 
         // Get a connection to the file that contains the text messages.
         Scanner keyboard = new Scanner(System.in);
-        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\SMS\\sms-20190516103355.xml");
+        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\sms-20190516103355.xml");
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
+            System.exit(0);
         }
 
         // Request confirmation from the user before attempting to back up the text messages.
@@ -190,9 +191,8 @@ class SMSBackup {
                                 System.out.println("ClassNotFoundException: " + cnfe);
                             }
 
-                        } else {   // mms (occurs on multiple lines)
-                            if (currLine.contains("<mms text_only=")) {  // beginning line. Fetch date sent and contact name. Also reset text only checker to true (assume its's text only until proven otherwise)
-
+                        } else { // mms (occurs on multiple lines)
+                            if (currLine.contains("<mms text_only=")) {
                                 if (currLine.contains("msg_box=\"1\"")) {  //  message is incoming
                                     mmsIncoming = 1;
                                 } else if (currLine.contains("msg_box=\"2\"")) {  // message is outgoing
@@ -201,13 +201,12 @@ class SMSBackup {
 
                                 mmsDate = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                                 mmsContactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.indexOf("\">"));
-
                             }
                             if (currLine.contains("ct=\"text/plain\"")) {  // Is a line with text. Indicate that this text message has a picture.
                                 mmsContainsText = true;
                                 mmsText = currLine.substring(currLine.indexOf("text=") + 6, currLine.indexOf("/>") - 2);
                             }
-                            
+
                             // Reached end of mms message.
                             if (mmsContainsText && currLine.length() >= 6 && currLine.contains("</mms>")) {  // end of mms - try inserting into database if this mms message contained text
 
@@ -225,7 +224,33 @@ class SMSBackup {
                                     //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
                                     mmsText = fixSMSString(mmsText);
 
-                                    String sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES (' [PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + mmsDate + "'); ";
+                                    String sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + mmsDate + "'); ";
+
+                                    PreparedStatement preparedStatement = conn.prepareStatement(sql);
+                                    preparedStatement.executeUpdate();
+                                    System.out.println("Successfully inserted a new MMS message: " + sql);
+                                } catch (SQLException sqle) {
+                                    System.out.println("SQL Exception ...: " + sqle);
+                                } catch (ClassNotFoundException cnfe) {
+                                    System.out.println("ClassNotFoundException: " + cnfe);
+                                }
+                            } else if (!mmsContainsText && currLine.length() >= 6 && currLine.contains("</mms>")) { // did not contain text. Still, would want to indicate that a picture was sent
+
+//////////////////////////////////////////////////////////////////////////////////
+/////////////Check to see if the message already exists in the database.//////////
+//////////////////////////////////////////////////////////////////////////////////
+                                mmsContainsText = false;  // Reset so we don't accidentally reinsert a message.
+                                if (messageExists(mmsDate, mmsContactName)) {
+                                    continue;  // Exists, so go on to next mms message.
+                                }
+
+                                try {
+                                    Class.forName("com.mysql.jdbc.Driver");
+
+                                    //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
+                                    mmsText = fixSMSString(mmsText);
+
+                                    String sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + mmsDate + "'); ";
 
                                     PreparedStatement preparedStatement = conn.prepareStatement(sql);
                                     preparedStatement.executeUpdate();

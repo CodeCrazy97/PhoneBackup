@@ -17,6 +17,7 @@ class CallsBackup {
         File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\SMS\\calls-20190516103355.xml");
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
+            System.exit(0);
         }
 
         Scanner input = new Scanner(System.in);
