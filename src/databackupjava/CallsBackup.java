@@ -14,20 +14,12 @@ class CallsBackup {
 
         //Read through the new text messages.
         Scanner keyboard = new Scanner(System.in);
-        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\SMS\\calls-20190516103355.xml");
+        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\calls-20190517182429.xml");
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
             System.exit(0);
         }
-
-        Scanner input = new Scanner(System.in);
-        System.out.println("Please confirm that you would like to backup your calls (y/n)");
-        String response = input.next();
-        if (response.equals("n") || response.equals("N")) {
-            System.out.println("Exiting the program. Nothing was backed up.");
-            System.exit(0);
-        }
-
+        
         //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
         //having to confirm more than once whether or not to allow the program to create a new contact. Without the
         //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
@@ -88,10 +80,11 @@ class CallsBackup {
                             Class.forName("com.mysql.jdbc.Driver");
 
                             String sql = "INSERT INTO phonecalls (contactname, calldate, duration, incoming) VALUES ('" + contactName + "', '" + date + "', " + duration + ", " + incoming + "); ";
-                            System.out.println("SQL insert statement: " + sql);
+                            
                             PreparedStatement preparedStatement = conn.prepareStatement(sql);
                             preparedStatement.executeUpdate();
-
+                            
+                            System.out.println("SQL insert statement: " + sql);
                         } catch (SQLException sqle) {
                             System.out.println("SQL Exception: " + sqle);
                         } catch (ClassNotFoundException cnfe) {
