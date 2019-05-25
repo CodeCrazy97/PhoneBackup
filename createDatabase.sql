@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS `contacts` (
   `name` varchar(30) NOT NULL,
   `phone_number` bigint(20) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=147 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=148 DEFAULT CHARSET=latin1;
 
 -- Data exporting was unselected.
 -- Dumping structure for table sms.messages
@@ -31,22 +31,22 @@ CREATE TABLE IF NOT EXISTS `messages` (
   `message_text` text NOT NULL,
   `incoming` tinyint(1) NOT NULL,
   `contact` int(11) NOT NULL,
-  `sent_datetime` varchar(50) NOT NULL,
+  `sent_timestamp` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (`id`),
   KEY `messages_fk1` (`contact`),
   CONSTRAINT `messages_fk1` FOREIGN KEY (`contact`) REFERENCES `contacts` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=21518 DEFAULT CHARSET=latin1 MAX_ROWS=1000000;
+) ENGINE=InnoDB AUTO_INCREMENT=8182 DEFAULT CHARSET=latin1 MAX_ROWS=1000000;
 
 -- Data exporting was unselected.
 -- Dumping structure for table sms.phonecalls
 CREATE TABLE IF NOT EXISTS `phonecalls` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `contactname` varchar(30) NOT NULL,
-  `calldate` varchar(50) NOT NULL,
   `duration` int(5) NOT NULL,
+  `call_timestamp` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `incoming` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=489 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=480 DEFAULT CHARSET=latin1;
 
 -- Data exporting was unselected.
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

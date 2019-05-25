@@ -16,12 +16,11 @@ class SMSBackup {
 
         // Get a connection to the file that contains the text messages.
         Scanner keyboard = new Scanner(System.in);
-        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\sms-20190517182429.xml");
+        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\sms-20190525094728.xml");
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
             System.exit(0);
         }
-       
 
         //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
         //having to confirm more than once whether or not to allow the program to create a new contact. Without the
@@ -32,8 +31,8 @@ class SMSBackup {
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
             try {
                 //create the connection to the database
-                Connection conn = DriverManager.getConnection(
-                        "jdbc:mysql://localhost:3306/sms", "root", "");
+                Connection conn = new MySQLConnection().getConnection();
+
                 try {
 
                     String currLine;  //The line in the file currently being viewed by the program. The xml file is
@@ -125,38 +124,15 @@ class SMSBackup {
                             //Get the timestamp of when the message was sent
                             String timestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.lastIndexOf("\" contact"));
 
-                            //The id of the contact.
-                            int id = -1;
-                            try {
-                                // create our mysql database connection
-                                String myDriver = "org.gjt.mm.mysql.Driver";
-                                Class.forName(myDriver);
-
-                                //Fetch the id of the other person.
-                                String sqlidSelect = "(SELECT id FROM contacts WHERE name = '" + contactName + "');";
-
-                                // create the java statement
-                                Statement idStmt = conn.createStatement();
-
-                                // execute the query, and get a java resultset
-                                ResultSet rs = idStmt.executeQuery(sqlidSelect);
-
-                                // iterate through the java resultset
-                                boolean breakOut = false;
-                                while (rs.next()) {
-                                    id = rs.getInt(1);
-                                }
-                                idStmt.close();
-                            } catch (Exception e) {
-                                System.err.println("Got an exception! ");
-                                System.err.println(e.getMessage());
-                            }
-
 //////////////////////////////////////////////////////////////////////////////////
 /////////////Check to see if the message already exists in the database.//////////
 //////////////////////////////////////////////////////////////////////////////////
-                            if (messageExists(timestamp, contactName)) {
-                                continue;
+                            try {
+                                if (messageExists(createSQLTimestamp(timestamp), contactName)) {
+                                    continue;
+                                }
+                            } catch (Exception ex) {
+                                System.out.println("Exception trying to check if a text message exists: " + ex);
                             }
 /////////////////////////////////////////////////////////////////////////////////////////////
 ////////Finished checking if it exists in the database.//////////////////////////////////////
@@ -173,7 +149,14 @@ class SMSBackup {
                             try {
                                 Class.forName("com.mysql.jdbc.Driver");
 
-                                String sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES ('" + messageQueue + "', " + incomingMessage + ", " + id + ", '" + timestamp + "'); ";
+                                String sql = "";
+                                try {
+                                    sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('" + messageQueue + "', " + incomingMessage + ", (SELECT id FROM contacts WHERE name = '" + contactName + "'), '" + createSQLTimestamp(timestamp) + "'); ";
+                                } catch (Exception ex) {
+                                    System.out.println("Exception: " + ex);
+                                    continue;   // Don't want to continue trying to insert into the database for this message.
+                                }
+
                                 PreparedStatement preparedStatement = conn.prepareStatement(sql);
                                 preparedStatement.executeUpdate();
                                 System.out.println("sql insert: " + sql);
@@ -205,9 +188,12 @@ class SMSBackup {
 //////////////////////////////////////////////////////////////////////////////////
 /////////////Check to see if the message already exists in the database.//////////
 //////////////////////////////////////////////////////////////////////////////////
-                                if (messageExists(mmsDate, mmsContactName)) {
-                                    mmsContainsText = false;  //reset for next iteration
-                                    continue;  // Exists, so go on to next mms message.
+                                try {
+                                    if (messageExists(createSQLTimestamp(mmsDate), mmsContactName)) {
+                                        continue;
+                                    }
+                                } catch (Exception ex) {
+                                    System.out.println("Exception trying to check if an mms text message exists: " + ex);
                                 }
 
                                 try {
@@ -216,12 +202,16 @@ class SMSBackup {
                                     //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
                                     mmsText = fixSMSString(mmsText);
                                     String sql = "";
-                                    if (mmsContainsText) {
-                                        sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + mmsDate + "'); ";
-                                    } else {
-                                        sql = "INSERT INTO messages (message_text, incoming, contact, sent_datetime) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + mmsDate + "'); ";
+                                    try {
+                                        if (mmsContainsText) {
+                                            sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + createSQLTimestamp(mmsDate) + "'); ";
+                                        } else {
+                                            sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + createSQLTimestamp(mmsDate) + "'); ";
+                                        }
+                                    } catch (Exception ex) {
+                                        System.out.println("Exception: " + ex);
                                     }
-                                    
+
                                     mmsContainsText = false;  // Reset so we don't accidentally reinsert a message.
                                     PreparedStatement preparedStatement = conn.prepareStatement(sql);
                                     preparedStatement.executeUpdate();
@@ -231,7 +221,7 @@ class SMSBackup {
                                 } catch (ClassNotFoundException cnfe) {
                                     System.out.println("ClassNotFoundException: " + cnfe);
                                 }
-                            } 
+                            }
                         }
                     }
                 } finally {
@@ -245,6 +235,80 @@ class SMSBackup {
             }
 
         }
+    }
+
+    // createSQLTimestamp: creates an SQL timestamp datatype.
+    // timestamp: a string date time of the form "Apr 12, 2017 4:01:03 PM"
+    // The return value for the above input would be 2017-04-12 16:01:03
+    public static String createSQLTimestamp(String timestamp) throws Exception {
+        String fixedTimestamp = "";
+        // Get year.
+        int indexOfComma = timestamp.indexOf(",");
+        fixedTimestamp = timestamp.substring(indexOfComma + 2, indexOfComma + 6) + "-";
+
+        // Get the month.
+        switch (timestamp.substring(0, 3)) {
+            case "Jan":
+                fixedTimestamp += "01-";
+                break;
+            case "Feb":
+                fixedTimestamp += "02-";
+                break;
+            case "Mar":
+                fixedTimestamp += "03-";
+                break;
+            case "Apr":
+                fixedTimestamp += "04-";
+                break;
+            case "May":
+                fixedTimestamp += "05-";
+                break;
+            case "Jun":
+                fixedTimestamp += "06-";
+                break;
+            case "Jul":
+                fixedTimestamp += "07-";
+                break;
+            case "Aug":
+                fixedTimestamp += "08-";
+                break;
+            case "Sep":
+                fixedTimestamp += "09-";
+                break;
+            case "Oct":
+                fixedTimestamp += "10-";
+                break;
+            case "Nov":
+                fixedTimestamp += "11-";
+                break;
+            case "Dec":
+                fixedTimestamp += "12-";
+                break;
+            default:
+                throw new Exception("Something is wrong with the month!!!");
+        }
+
+        // Get the day.
+        fixedTimestamp += timestamp.substring(timestamp.indexOf(" ") + 1, indexOfComma) + " ";
+
+        // Get the time.
+        // First, find out if it was morning (AM) or evening (PM).
+        int hour = Integer.parseInt(timestamp.substring(indexOfComma + 7, timestamp.indexOf(":")));
+        if (timestamp.substring(timestamp.length() - 2).equals("PM")) {
+            if (hour == 12) {  // Don't add 12 - it is the afternoon, but the hour is 12 o'clock
+                fixedTimestamp += hour;
+            } else {
+                fixedTimestamp += hour + 12;
+            }
+        } else if (hour == 12) { // Subtract twelve from the hour. The hour is midnight.
+            fixedTimestamp += hour - 12;
+        } else {
+            fixedTimestamp += hour;
+        }
+        // Get minutes and seconds.
+        fixedTimestamp += timestamp.substring(timestamp.indexOf(":"), timestamp.lastIndexOf(" "));
+
+        return fixedTimestamp;
     }
 
     // Some strange things happen to text messages when they are turned into XML!
@@ -282,7 +346,7 @@ class SMSBackup {
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT * FROM messages WHERE sent_datetime = '" + timestamp + "' AND contact = (SELECT id FROM contacts WHERE name = '" + contactName + "');";  //Prevents from putting duplicate messages in the database ("duplicates" are messages that have been sent to the same address at the same time)
+            String query = "SELECT * FROM messages WHERE sent_timestamp = '" + timestamp + "' AND contact = (SELECT id FROM contacts WHERE name = '" + contactName + "');";  //Prevents from putting duplicate messages in the database ("duplicates" are messages that have been sent to the same address at the same time)
             // create the java statement
             Statement st = conn.createStatement();
 
