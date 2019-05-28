@@ -12,7 +12,7 @@ Finally, an example phone call:
  
 A prerequisite to running this program is having MySQL installed and running on your machine. This application will work only on Windows computers.
 
-To run this program, you will first need to save your text messages and phone calls. (I saved mine using SMS Backup & Restore.) Then, change the line of code that points to the XML file containing your text messages (shown below).
+To run this program, you will first need to save your text messages and phone calls into XML files in the formats shown above. (I saved mine using SMS Backup & Restore.) Then, change the line of code that points to the XML file containing your text messages (shown below).
  ![alt text](https://github.com/CodeCrazy97/SaveSMSMessages/blob/master/changeThisLineOfCodeSMSBackup.png)
  
  Similarly, change the line of code for backing up your phone calls. Make the CallsBackup.java file look at the XML file containing your phone calls. 
