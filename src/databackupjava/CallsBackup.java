@@ -29,7 +29,11 @@ class CallsBackup {
 
             String currLine;  //The line in the file currently being viewed by the program. The xml file is
             //broken up by lines; so, one line represents a single text message.
-
+            
+            System.out.println("About to start backing up your phone calls.");
+            System.out.println("This program will NOT remove any phone calls already in the database.");
+            System.out.println("This may take a few minutes.\n");
+            
             while ((currLine = br.readLine()) != null) {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
                     //create the connection to the database

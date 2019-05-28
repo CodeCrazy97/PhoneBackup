@@ -16,7 +16,7 @@ class SMSBackup {
 
         // Get a connection to the file that contains the text messages.
         Scanner keyboard = new Scanner(System.in);
-        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\sms-20190525094728.xml");
+        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\SMS\\sms-20190525094728.xml");
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
             System.exit(0);
@@ -45,10 +45,14 @@ class SMSBackup {
                     String mmsText = "";  // Text contained in the mms message.
                     boolean mmsContainsText = false;  // Whether or not the mms contains text. If it does not contain text.
 
+                    System.out.println("About to start backing up your text messages.");
+                    System.out.println("This program will NOT remove any text messages already in the database.");
+                    System.out.println("This may take a several minutes.\n");
+
                     while ((currLine = br.readLine()) != null) {
-                        if (currLine != null && currLine.contains("body=\"")) {  //If the line starts with "body="", then it is a line that contains a text message.
-//messageQueue is the actual text of the currently viewed message. The text is between body=" and toa=" in the line.
-                            String messageQueue = currLine.substring(currLine.indexOf("body=\"") + 6, currLine.indexOf("toa=\"") - 2);
+                        if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
+//messageQueue is the actual text of the currently viewed message. The text is between  body= and toa=" in the line.
+                            String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
 
                             //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
                             messageQueue = fixSMSString(messageQueue);
