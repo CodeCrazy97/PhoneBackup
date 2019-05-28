@@ -104,7 +104,7 @@ namespace GUI
                 }
                 else
                 {
-                    this.Title = "Loading...";
+                    this.Title = "Loading...";                    
                     while (reader.Read())                        //read through the results
                     {
                         if (!reader.IsDBNull(0))
