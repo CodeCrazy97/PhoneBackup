@@ -158,11 +158,12 @@ namespace SMSGui
         {
             // Get the messages for that contact.
             getMessages(contactsComboBox.SelectedItem.ToString());
-            messagesRichTextBox.Focus();
+            messagesRichTextBox.Focus();  // Place the focus on the text box (taking it away from the combo box).
         }
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            this.ActiveControl = messagesRichTextBox;  // Set the message box as the component that has control (this way, you can scroll without having to click on it).
         }
     }
 }
