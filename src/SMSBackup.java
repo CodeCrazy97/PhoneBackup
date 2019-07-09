@@ -1,4 +1,4 @@
-package databackupjava;
+package src;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -12,26 +12,26 @@ import java.util.logging.Logger;
 
 class SMSBackup {
 
+    //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
+    //having to confirm more than once whether or not to allow the program to create a new contact. Without the
+    //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
+    //to the database (this would happen if more than one message was sent/received from the same contact).
+    public static LinkedList<String> phoneNumbers = new LinkedList<>();
+    //create the connection to the database
+    public static Connection conn = new MySQLConnection().getConnection();
+
     public static void main(String[] args) throws IOException, SQLException {
 
         // Get a connection to the file that contains the text messages.
         Scanner keyboard = new Scanner(System.in);
-        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\SMS\\sms-20190525094728.xml");
+        File file = new File("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\sms-20190708125353.xml");
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
             System.exit(0);
         }
 
-        //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
-        //having to confirm more than once whether or not to allow the program to create a new contact. Without the
-        //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
-        //to the database (this would happen if more than one message was sent/received from the same contact).
-        LinkedList<String> phoneNumbers = new LinkedList<>();
-
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
             try {
-                //create the connection to the database
-                Connection conn = new MySQLConnection().getConnection();
 
                 try {
 
@@ -68,59 +68,12 @@ class SMSBackup {
 
                             //Get the contact that the message was sent/received to/from
                             String contactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.lastIndexOf("\""));
-
+                            contactName = fixSMSString(contactName);
 //////////////////////////////////////////////////////////////////////////////////
 /////////////Check to see if the contact already exists in the database.//////////
 /////////////If not, then create new contact only if user wants to.///////////////
 //////////////////////////////////////////////////////////////////////////////////
-                            boolean addContact = false;
-                            if (!phoneNumbers.contains(phoneNumber)) {  //If this phone number has not been viewed before...
-                                try {
-                                    // create our mysql database connection
-                                    String myDriver = "org.gjt.mm.mysql.Driver";
-                                    Class.forName(myDriver);
-
-                                    String query = "SELECT COUNT(*) FROM contacts WHERE name = '" + contactName + "';";
-
-                                    // create the java statement
-                                    Statement st = conn.createStatement();
-
-                                    // execute the query, and get a java resultset
-                                    ResultSet rs = st.executeQuery(query);
-
-                                    // iterate through the java resultset
-                                    while (rs.next()) {
-                                        if (rs.getString(1).equals("0")) {  //The contact does NOT exist in the database.
-                                            System.out.println("*** ALERT ***");
-                                            System.out.println("Do you want to add " + contactName + " (phone number: " + phoneNumber + ") to the database (y/n)?");
-                                            String input2 = keyboard.nextLine();
-                                            if (input2.charAt(0) == 'y' || input2.charAt(0) == 'Y') {
-                                                addContact = true;
-                                            }
-                                            phoneNumbers.add(phoneNumber);  //This "new" phone number has been looked at - don't ask the user for a confirmation again.
-                                        }
-                                    }
-                                    rs.close();
-                                    if (addContact) {  //User wants to add contact to db.
-                                        try {
-                                            Class.forName("com.mysql.jdbc.Driver");
-
-                                            String sql = "INSERT INTO contacts (name, phone_number) VALUES ('" + contactName + "', '" + phoneNumber + "'); ";
-                                            PreparedStatement preparedStatement = conn.prepareStatement(sql);
-                                            preparedStatement.executeUpdate();
-
-                                        } catch (SQLException sqle) {
-                                            System.out.println("SQL Exception: " + sqle);
-                                        } catch (ClassNotFoundException cnfe) {
-                                            System.out.println("ClassNotFoundException: " + cnfe);
-                                        }
-                                    }
-                                    st.close();
-                                } catch (Exception e) {
-                                    System.err.println("Got an exception! ");
-                                    System.err.println(e.getMessage());
-                                }
-                            }
+                            handleContact(contactName, phoneNumber);
 /////////////////////////////////////////////////////////////////////////////////////////////
 ////////Finished inserting new contact (if applicable).//////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -166,6 +119,7 @@ class SMSBackup {
                                 System.out.println("sql insert: " + sql);
                             } catch (SQLException sqle) {
                                 System.out.println("SQL Exception ...: " + sqle);
+                                System.out.println(currLine + "\n");
                             } catch (ClassNotFoundException cnfe) {
                                 System.out.println("ClassNotFoundException: " + cnfe);
                             }
@@ -180,6 +134,9 @@ class SMSBackup {
 
                                 mmsDate = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                                 mmsContactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.indexOf("\">"));
+                                String mmsPhoneNumber = currLine.substring(currLine.indexOf("address=\"") + 10, currLine.indexOf("\" d_rpt="));
+                                // Check to see that the sender is already in the db.
+                                handleContact(mmsContactName, mmsPhoneNumber);
                             }
                             if (currLine.contains("ct=\"text/plain\"")) {  // Is a line with text. Indicate that this text message has a picture.
                                 mmsContainsText = true;
@@ -199,13 +156,13 @@ class SMSBackup {
                                 } catch (Exception ex) {
                                     System.out.println("Exception trying to check if an mms text message exists: " + ex);
                                 }
-
+                                String sql = "";
                                 try {
                                     Class.forName("com.mysql.jdbc.Driver");
 
                                     //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
                                     mmsText = fixSMSString(mmsText);
-                                    String sql = "";
+
                                     try {
                                         if (mmsContainsText) {
                                             sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + createSQLTimestamp(mmsDate) + "'); ";
@@ -222,6 +179,8 @@ class SMSBackup {
                                     System.out.println("Successfully inserted a new MMS message: " + sql);
                                 } catch (SQLException sqle) {
                                     System.out.println("SQL Exception ...: " + sqle);
+                                    System.out.println("Failed to insert " + sql + " into the database.");
+                                    System.out.println(currLine + "\n");
                                 } catch (ClassNotFoundException cnfe) {
                                     System.out.println("ClassNotFoundException: " + cnfe);
                                 }
@@ -318,8 +277,8 @@ class SMSBackup {
     // Some strange things happen to text messages when they are turned into XML!
     // Below, I fix odd characters and turn them into what they should be.
     public static String fixSMSString(String message) {
-        message = message.replace("&#55357;&#56832;", "☺");
-        message = message.replace("�", "\'");  //Replace all � with apostraphes.
+        message = message.replace("&#55357;&#56832;", "â˜º");
+        message = message.replace("ï¿½", "\'");  //Replace all ï¿½ with apostraphes.
         message = message.replace("&#10;", "\\n");  //Replace all &#10; with newline characters.
         message = message.replace("\'", "\\'");
         message = message.replace(" &#55357;&#56846", "\uD83D\uDE0E");
@@ -329,6 +288,58 @@ class SMSBackup {
         message = message.replace("&amp;", "&");  //ampersand symbol
         message = message.replace("&apos;", "\\'");  // single quote
         return message;
+    }
+
+    public static void handleContact(String contactName, String phoneNumber) {
+        Scanner keyboard = new Scanner(System.in);
+        boolean addContact = false;
+        if (!phoneNumbers.contains(phoneNumber)) {  //If this phone number has not been viewed before...
+            try {
+                // create our mysql database connection
+                String myDriver = "org.gjt.mm.mysql.Driver";
+                Class.forName(myDriver);
+
+                String query = "SELECT COUNT(*) FROM contacts WHERE name = '" + contactName + "';";
+
+                // create the java statement
+                Statement st = conn.createStatement();
+
+                // execute the query, and get a java resultset
+                ResultSet rs = st.executeQuery(query);
+
+                // iterate through the java resultset
+                while (rs.next()) {
+                    if (rs.getString(1).equals("0")) {  //The contact does NOT exist in the database.
+                        System.out.println("*** ALERT ***");
+                        System.out.println("Do you want to add " + contactName + " (phone number: " + phoneNumber + ") to the database (y/n)?");
+                        String input2 = keyboard.nextLine();
+                        if (input2.charAt(0) == 'y' || input2.charAt(0) == 'Y') {
+                            addContact = true;
+                        }
+                        phoneNumbers.add(phoneNumber);  //This "new" phone number has been looked at - don't ask the user for a confirmation again.
+                    }
+                }
+                rs.close();
+                if (addContact) {  //User wants to add contact to db.
+                    try {
+                        Class.forName("com.mysql.jdbc.Driver");
+
+                        String sql = "INSERT INTO contacts (name, phone_number) VALUES ('" + contactName + "', '" + phoneNumber + "'); ";
+                        PreparedStatement preparedStatement = conn.prepareStatement(sql);
+                        preparedStatement.executeUpdate();
+
+                    } catch (SQLException sqle) {
+                        System.out.println("SQL Exception: " + sqle);
+                    } catch (ClassNotFoundException cnfe) {
+                        System.out.println("ClassNotFoundException: " + cnfe);
+                    }
+                }
+                st.close();
+            } catch (Exception e) {
+                System.err.println("Got an exception! ");
+                System.err.println(e.getMessage());
+            }
+        }
     }
 
     public static boolean messageExists(String timestamp, String contactName) {

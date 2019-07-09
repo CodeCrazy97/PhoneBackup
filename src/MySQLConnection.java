@@ -1,4 +1,4 @@
-package databackupjava;
+package src;
 
 import java.io.File;
 import java.io.IOException;
@@ -8,7 +8,7 @@ import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class MySQLConnection {
+class MySQLConnection {
 
     public MySQLConnection() {
 

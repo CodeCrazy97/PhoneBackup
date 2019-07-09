@@ -1,4 +1,4 @@
-package databackupjava;
+package src;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -13,7 +13,7 @@ class CallsBackup {
     public static void main(String[] args) throws IOException, SQLException {
 
         //Read through the new text messages.
-        File file = new File("C:\\Users\\Ethan_2\\Documents\\Projects\\Java\\SMS\\calls-20190525094728.xml");
+        File file = new File("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\calls-20190708125353.xml");
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
             System.exit(0);
@@ -38,7 +38,7 @@ class CallsBackup {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
                     //create the connection to the database
                     Connection conn = new MySQLConnection().getConnection();
-
+ 
                     try {
                         String duration = currLine.substring(currLine.indexOf("duration=\"") + 10, currLine.indexOf("\" date="));
                         String callTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
@@ -180,7 +180,9 @@ class CallsBackup {
     }
 
     public static String fixForInsertion(String sql) {
+        sql = sql.replace("\'", "\\'");
         sql = sql.replace("&amp;", "&");
         return sql;
     }
 }
+
