@@ -1,4 +1,4 @@
-package src;
+package backupcallsandsms;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -192,11 +192,9 @@ class SMSBackup {
                         conn.close();
                     }
                 }
-
             } catch (SQLException sqle) {
                 System.out.println("SQL Exception :) => " + sqle);
             }
-
         }
     }
 
