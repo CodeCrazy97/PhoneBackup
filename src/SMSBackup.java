@@ -1,4 +1,3 @@
-package backupcallsandsms;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -24,7 +23,7 @@ class SMSBackup {
 
         // Get a connection to the file that contains the text messages.
         Scanner keyboard = new Scanner(System.in);
-        File file = new File("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\sms-20190708125353.xml");
+        File file = new File("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\sms-20190805155143.xml");
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
             System.exit(0);
@@ -32,9 +31,7 @@ class SMSBackup {
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
             try {
-
                 try {
-
                     String currLine;  //The line in the file currently being viewed by the program. The xml file is
                     // broken up by lines; so, one line represents a single SMS text message. MMS messages (text messages
                     // that contain pictures or contain a lot of text) span multiple lines and are handled a little differently. 
@@ -49,6 +46,8 @@ class SMSBackup {
                     System.out.println("This program will NOT remove any text messages already in the database.");
                     System.out.println("This may take a several minutes.\n");
 
+                    // recipientCount ~ the number of people a message was sent to
+                    int recipientCount = 0;
                     while ((currLine = br.readLine()) != null) {
                         if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
 //messageQueue is the actual text of the currently viewed message. The text is between  body= and toa=" in the line.
@@ -82,17 +81,17 @@ class SMSBackup {
                             String timestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.lastIndexOf("\" contact"));
 
 //////////////////////////////////////////////////////////////////////////////////
-/////////////Check to see if the message already exists in the database.//////////
+/////////////Check to see if the sms message already exists in the database.//////
 //////////////////////////////////////////////////////////////////////////////////
                             try {
-                                if (messageExists(createSQLTimestamp(timestamp), contactName)) {
+                                if (messageExists(new MySQLConnection().createSQLTimestamp(timestamp), contactName)) {
                                     continue;
                                 }
                             } catch (Exception ex) {
                                 System.out.println("Exception trying to check if a text message exists: " + ex);
                             }
 /////////////////////////////////////////////////////////////////////////////////////////////
-////////Finished checking if it exists in the database.//////////////////////////////////////
+////////Finished checking if the sms message exists in the database./////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 
                             boolean incomingMessage = false;
@@ -108,7 +107,7 @@ class SMSBackup {
 
                                 String sql = "";
                                 try {
-                                    sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('" + messageQueue + "', " + incomingMessage + ", (SELECT id FROM contacts WHERE name = '" + contactName + "'), '" + createSQLTimestamp(timestamp) + "'); ";
+                                    sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('" + messageQueue + "', " + incomingMessage + ", (SELECT id FROM contacts WHERE name = '" + contactName + "'), '" + new MySQLConnection().createSQLTimestamp(timestamp) + "'); ";
                                 } catch (Exception ex) {
                                     System.out.println("Exception: " + ex);
                                     continue;   // Don't want to continue trying to insert into the database for this message.
@@ -125,6 +124,9 @@ class SMSBackup {
                             }
 
                         } else { // mms (occurs on multiple lines)
+                            if (currLine.contains("type=\"151\"")) {  // The recipient of the mms message. If there are more than one recipients, then this is a group message.
+                                recipientCount++;
+                            }
                             if (currLine.contains("<mms text_only=")) {
                                 if (currLine.contains("msg_box=\"1\"")) {  //  message is incoming
                                     mmsIncoming = 1;
@@ -135,6 +137,8 @@ class SMSBackup {
                                 mmsDate = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                                 mmsContactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.indexOf("\">"));
                                 String mmsPhoneNumber = currLine.substring(currLine.indexOf("address=\"") + 10, currLine.indexOf("\" d_rpt="));
+										// Fix apostrophe for SQL querying/inserting.
+                                mmsContactName = fixSMSString(mmsContactName);																								  
                                 // Check to see that the sender is already in the db.
                                 handleContact(mmsContactName, mmsPhoneNumber);
                             }
@@ -147,10 +151,10 @@ class SMSBackup {
                             if (currLine.length() >= 6 && currLine.contains("</mms>")) {  // end of mms - try inserting into database if this mms message contained text
 
 //////////////////////////////////////////////////////////////////////////////////
-/////////////Check to see if the message already exists in the database.//////////
+/////////////Check to see if the mms message already exists in the database.//////
 //////////////////////////////////////////////////////////////////////////////////
                                 try {
-                                    if (messageExists(createSQLTimestamp(mmsDate), mmsContactName)) {
+                                    if (messageExists(new MySQLConnection().createSQLTimestamp(mmsDate), mmsContactName)) {
                                         continue;
                                     }
                                 } catch (Exception ex) {
@@ -164,10 +168,16 @@ class SMSBackup {
                                     mmsText = fixSMSString(mmsText);
 
                                     try {
-                                        if (mmsContainsText) {
-                                            sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + createSQLTimestamp(mmsDate) + "'); ";
+                                        if (recipientCount >= 2) {
+                                            if (mmsContainsText) {
+                                                sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('[GROUP MSG] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLConnection().createSQLTimestamp(mmsDate) + "'); ";
+                                            } else {
+                                                sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('[GROUP MSG PIC]', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLConnection().createSQLTimestamp(mmsDate) + "'); ";
+                                            }
+                                        } else if (mmsContainsText) {
+                                            sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLConnection().createSQLTimestamp(mmsDate) + "'); ";
                                         } else {
-                                            sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + createSQLTimestamp(mmsDate) + "'); ";
+                                            sql = "INSERT INTO messages (message_text, incoming, contact, sent_timestamp) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLConnection().createSQLTimestamp(mmsDate) + "'); ";
                                         }
                                     } catch (Exception ex) {
                                         System.out.println("Exception: " + ex);
@@ -184,6 +194,9 @@ class SMSBackup {
                                 } catch (ClassNotFoundException cnfe) {
                                     System.out.println("ClassNotFoundException: " + cnfe);
                                 }
+
+                                // Reset the recipient count for next message.
+                                recipientCount = 0;
                             }
                         }
                     }
@@ -196,80 +209,6 @@ class SMSBackup {
                 System.out.println("SQL Exception :) => " + sqle);
             }
         }
-    }
-
-    // createSQLTimestamp: creates an SQL timestamp datatype.
-    // timestamp: a string date time of the form "Apr 12, 2017 4:01:03 PM"
-    // The return value for the above input would be 2017-04-12 16:01:03
-    public static String createSQLTimestamp(String timestamp) throws Exception {
-        String fixedTimestamp = "";
-        // Get year.
-        int indexOfComma = timestamp.indexOf(",");
-        fixedTimestamp = timestamp.substring(indexOfComma + 2, indexOfComma + 6) + "-";
-
-        // Get the month.
-        switch (timestamp.substring(0, 3)) {
-            case "Jan":
-                fixedTimestamp += "01-";
-                break;
-            case "Feb":
-                fixedTimestamp += "02-";
-                break;
-            case "Mar":
-                fixedTimestamp += "03-";
-                break;
-            case "Apr":
-                fixedTimestamp += "04-";
-                break;
-            case "May":
-                fixedTimestamp += "05-";
-                break;
-            case "Jun":
-                fixedTimestamp += "06-";
-                break;
-            case "Jul":
-                fixedTimestamp += "07-";
-                break;
-            case "Aug":
-                fixedTimestamp += "08-";
-                break;
-            case "Sep":
-                fixedTimestamp += "09-";
-                break;
-            case "Oct":
-                fixedTimestamp += "10-";
-                break;
-            case "Nov":
-                fixedTimestamp += "11-";
-                break;
-            case "Dec":
-                fixedTimestamp += "12-";
-                break;
-            default:
-                throw new Exception("Something is wrong with the month!!!");
-        }
-
-        // Get the day.
-        fixedTimestamp += timestamp.substring(timestamp.indexOf(" ") + 1, indexOfComma) + " ";
-
-        // Get the time.
-        // First, find out if it was morning (AM) or evening (PM).
-        int hour = Integer.parseInt(timestamp.substring(indexOfComma + 7, timestamp.indexOf(":")));
-        if (timestamp.substring(timestamp.length() - 2).equals("PM")) {
-            if (hour == 12) {  // Don't add 12 - it is the afternoon, but the hour is 12 o'clock
-                fixedTimestamp += hour;
-            } else {
-                fixedTimestamp += hour + 12;
-            }
-        } else if (hour == 12) { // Subtract twelve from the hour. The hour is midnight.
-            fixedTimestamp += hour - 12;
-        } else {
-            fixedTimestamp += hour;
-        }
-        // Get minutes and seconds.
-        fixedTimestamp += timestamp.substring(timestamp.indexOf(":"), timestamp.lastIndexOf(" "));
-
-        return fixedTimestamp;
     }
 
     // Some strange things happen to text messages when they are turned into XML!

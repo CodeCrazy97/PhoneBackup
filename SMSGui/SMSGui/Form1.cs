@@ -157,7 +157,7 @@ namespace SMSGui
         private void contactsComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             // Get the messages for that contact.
-            getMessages(contactsComboBox.SelectedItem.ToString());
+            getMessages(contactsComboBox.SelectedItem.ToString().Replace("\'", "\\'"));
             messagesRichTextBox.Focus();  // Place the focus on the text box (taking it away from the combo box).
         }
 

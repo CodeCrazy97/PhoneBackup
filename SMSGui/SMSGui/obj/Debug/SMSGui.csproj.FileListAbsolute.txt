@@ -10,3 +10,14 @@ C:\Users\Ethan_2\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\S
 C:\Users\Ethan_2\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.csproj.CopyComplete
 C:\Users\Ethan_2\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.exe
 C:\Users\Ethan_2\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.pdb
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\bin\Debug\SMSGui.exe
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\bin\Debug\SMSGui.pdb
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\bin\Debug\MySql.Data.xml
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.csprojAssemblyReference.cache
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.Form1.resources
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.Properties.Resources.resources
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.csproj.GenerateResource.cache
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.csproj.CoreCompileInputs.cache
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.csproj.CopyComplete
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.exe
+C:\Users\Ethan\Documents\Projects\SMS\DataBackupJava\SMSGui\SMSGui\obj\Debug\SMSGui.pdb

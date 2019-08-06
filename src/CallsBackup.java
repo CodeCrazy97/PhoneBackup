@@ -1,5 +1,3 @@
-package backupcallsandsms;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -54,7 +52,7 @@ class CallsBackup {
                         Class.forName(myDriver);
 
                         try {  // check that the call does not already xist in the database
-                            String query = "SELECT COUNT(*) FROM phonecalls WHERE call_timestamp = '" + createSQLTimestamp(callTimestamp) + "'; ";
+                            String query = "SELECT COUNT(*) FROM phonecalls WHERE call_timestamp = '" + new MySQLConnection().createSQLTimestamp(callTimestamp) + "'; ";
                             System.out.println("query: " + query);
                             // create the java statement
                             Statement st = conn.createStatement();
@@ -80,7 +78,7 @@ class CallsBackup {
                         try {  // now try inserting the call into the database
                             Class.forName("com.mysql.jdbc.Driver");
 
-                            String sql = "INSERT INTO phonecalls (contactname, call_timestamp, duration, incoming) VALUES ('" + contactName + "', '" + createSQLTimestamp(callTimestamp) + "', " + duration + ", " + incoming + "); ";
+                            String sql = "INSERT INTO phonecalls (contactname, call_timestamp, duration, incoming) VALUES ('" + contactName + "', '" + new MySQLConnection().createSQLTimestamp(callTimestamp) + "', " + duration + ", " + incoming + "); ";
 
                             PreparedStatement preparedStatement = conn.prepareStatement(sql);
                             preparedStatement.executeUpdate();
@@ -105,84 +103,9 @@ class CallsBackup {
         }
     }
 
-    // createSQLTimestamp: creates an SQL timestamp datatype.
-    // timestamp: a string date time of the form "Apr 12, 2017 4:01:03 PM"
-    // The return value for the above input would be 2017-04-12 16:01:03
-    public static String createSQLTimestamp(String timestamp) throws Exception {
-        String fixedTimestamp = "";
-        // Get year.
-        int indexOfComma = timestamp.indexOf(",");
-        fixedTimestamp = timestamp.substring(indexOfComma + 2, indexOfComma + 6) + "-";
-
-        // Get the month.
-        switch (timestamp.substring(0, 3)) {
-            case "Jan":
-                fixedTimestamp += "01-";
-                break;
-            case "Feb":
-                fixedTimestamp += "02-";
-                break;
-            case "Mar":
-                fixedTimestamp += "03-";
-                break;
-            case "Apr":
-                fixedTimestamp += "04-";
-                break;
-            case "May":
-                fixedTimestamp += "05-";
-                break;
-            case "Jun":
-                fixedTimestamp += "06-";
-                break;
-            case "Jul":
-                fixedTimestamp += "07-";
-                break;
-            case "Aug":
-                fixedTimestamp += "08-";
-                break;
-            case "Sep":
-                fixedTimestamp += "09-";
-                break;
-            case "Oct":
-                fixedTimestamp += "10-";
-                break;
-            case "Nov":
-                fixedTimestamp += "11-";
-                break;
-            case "Dec":
-                fixedTimestamp += "12-";
-                break;
-            default:
-                throw new Exception("Something is wrong with the month!!!");
-        }
-
-        // Get the day.
-        fixedTimestamp += timestamp.substring(timestamp.indexOf(" ") + 1, indexOfComma) + " ";
-
-        // Get the time.
-        // First, find out if it was morning (AM) or evening (PM).
-        int hour = Integer.parseInt(timestamp.substring(indexOfComma + 7, timestamp.indexOf(":")));
-        if (timestamp.substring(timestamp.length() - 2).equals("PM")) {
-            if (hour == 12) {  // Don't add 12 - it is the afternoon, but the hour is 12 o'clock
-                fixedTimestamp += hour;
-            } else {
-                fixedTimestamp += hour + 12;
-            }
-        } else if (hour == 12) { // Subtract twelve from the hour. The hour is midnight.
-            fixedTimestamp += hour - 12;
-        } else {
-            fixedTimestamp += hour;
-        }
-        // Get minutes and seconds.
-        fixedTimestamp += timestamp.substring(timestamp.indexOf(":"), timestamp.lastIndexOf(" "));
-
-        return fixedTimestamp;
-    }
-
     public static String fixForInsertion(String sql) {
         sql = sql.replace("\'", "\\'");
         sql = sql.replace("&amp;", "&");
         return sql;
     }
 }
-
