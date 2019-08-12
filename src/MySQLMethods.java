@@ -8,16 +8,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.LinkedList;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JTextArea;
 
 class MySQLMethods {
 
-    public static JTextArea output = null;  //  text area to display output
-
-    public MySQLMethods(JTextArea output) {
-        this.output = output;
+    public MySQLMethods() {
+        
     }
 
     public static Connection getConnection() {
@@ -31,23 +30,25 @@ class MySQLMethods {
             String basePath = new File("").getAbsolutePath();
             if (ex.getMessage().equals("Unknown database 'phone_backup'")) {  // Database was not created. Run the script that creates it.
                 String createDB = basePath.replace("\\", "/") + "/create_database.bat";
+
                 try {
                     Runtime.getRuntime().exec("cmd /c start \"\" \"" + createDB + "\"");
                 } catch (IOException ex1) {
-                    output.append("\nIOException: " + ex1);
+                    System.out.println("IOException: " + ex1);
                 }
                 try {
                     Thread.sleep(750);  // Wait a few seconds before trying to establish a connection to the database that was just created.
                 } catch (InterruptedException ex1) {
-                    output.append("\nException sleeping: " + ex1);
+                    System.out.println("Exception sleeping: " + ex1);
                 }
-                try {  // Now try getting a connection to the database, since it should be created.
+
+                // Now try getting a connection to the database, since it should be created.
+                try {
                     conn = DriverManager.getConnection(
                             "jdbc:mysql://localhost:3306/phone_backup", "root", "");
                 } catch (SQLException ex1) {
-                    output.append("\nException trying to get a connection to the database: " + ex1);
+                    System.out.println("Exception trying to get a connection to the database: " + ex1);
                 }
-
             }
         }
         return conn;
@@ -128,12 +129,12 @@ class MySQLMethods {
         try {
             conn.close();
         } catch (SQLException ex) {
-            output.append("\nException trying to close the connection: " + ex.getMessage());;
+            System.out.println("Exception trying to close the connection: " + ex.getMessage());;
         }
     }
 
     public static void handleContact(String contactName, String phoneNumber, LinkedList<String> phoneNumbers) {
-        output.append("\n\nChecking contact...name = " + contactName + ", phone = " + phoneNumber);
+        System.out.println("\nChecking contact...name = " + contactName + ", phone = " + phoneNumber);
         boolean addContact = false;
         Connection conn = getConnection();
         if (!phoneNumbers.contains(phoneNumber)) {  //If this phone number has not been viewed before...
@@ -174,9 +175,9 @@ class MySQLMethods {
                         preparedStatement.executeUpdate();
 
                     } catch (SQLException sqle) {
-                        output.append("\nSQL Exception: " + sqle);
+                        System.out.println("SQL Exception: " + sqle);
                     } catch (ClassNotFoundException cnfe) {
-                        output.append("\nClassNotFoundException: " + cnfe);
+                        System.out.println("ClassNotFoundException: " + cnfe);
                     }
                 }
                 st.close();

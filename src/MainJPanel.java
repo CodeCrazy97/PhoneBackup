@@ -18,8 +18,6 @@ public class MainJPanel extends javax.swing.JPanel {
     public MainJPanel() {
         initComponents();
 
-        outputjLabel1.setVisible(false);
-        outputjTextArea1.setVisible(false);
         fullPathToPhoneCallsXMLjTextField2.setVisible(false);
         fullPathToTextMessagesXMLjTextField1.setVisible(false);
         phoneCallsPromptjLabel2.setVisible(false);
@@ -43,11 +41,8 @@ public class MainJPanel extends javax.swing.JPanel {
         textMessagesPromptjLabel1 = new javax.swing.JLabel();
         jPanel2 = new javax.swing.JPanel();
         backupPhoneCallsjRadioButton2 = new javax.swing.JRadioButton();
-        jScrollPane1 = new javax.swing.JScrollPane();
-        outputjTextArea1 = new javax.swing.JTextArea();
         backupNowjButton1 = new javax.swing.JButton();
         backupTextMessagesjRadioButton1 = new javax.swing.JRadioButton();
-        outputjLabel1 = new javax.swing.JLabel();
 
         phoneCallsPromptjLabel2.setText("Enter full path to phone calls XML file below:");
 
@@ -87,10 +82,6 @@ public class MainJPanel extends javax.swing.JPanel {
             }
         });
 
-        outputjTextArea1.setColumns(20);
-        outputjTextArea1.setRows(5);
-        jScrollPane1.setViewportView(outputjTextArea1);
-
         backupNowjButton1.setText("Backup Now");
         backupNowjButton1.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -104,9 +95,6 @@ public class MainJPanel extends javax.swing.JPanel {
                 backupTextMessagesjRadioButton1ActionPerformed(evt);
             }
         });
-
-        outputjLabel1.setFont(new java.awt.Font("Tahoma", 2, 16)); // NOI18N
-        outputjLabel1.setText("Ouput....");
 
         javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
         jPanel2.setLayout(jPanel2Layout);
@@ -122,13 +110,7 @@ public class MainJPanel extends javax.swing.JPanel {
                     .addGroup(jPanel2Layout.createSequentialGroup()
                         .addGap(48, 48, 48)
                         .addComponent(backupNowjButton1)))
-                .addGap(20, 20, 20)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(jScrollPane1)
-                    .addGroup(jPanel2Layout.createSequentialGroup()
-                        .addComponent(outputjLabel1)
-                        .addGap(0, 0, Short.MAX_VALUE)))
-                .addContainerGap())
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -140,11 +122,6 @@ public class MainJPanel extends javax.swing.JPanel {
                 .addGap(29, 29, 29)
                 .addComponent(backupNowjButton1)
                 .addContainerGap(323, Short.MAX_VALUE))
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
-                .addComponent(outputjLabel1)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 380, javax.swing.GroupLayout.PREFERRED_SIZE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(this);
@@ -174,6 +151,7 @@ public class MainJPanel extends javax.swing.JPanel {
             backupNowjButton1.setVisible(true);
             textMessagesPromptjLabel1.setVisible(true);
             fullPathToTextMessagesXMLjTextField1.setVisible(true);
+            fullPathToTextMessagesXMLjTextField1.requestFocusInWindow();  // set cursor to blinking in this text field.
         } else {
             if (!backupPhoneCallsjRadioButton2.isSelected()) {
                 backupNowjButton1.setVisible(false);
@@ -188,6 +166,7 @@ public class MainJPanel extends javax.swing.JPanel {
             backupNowjButton1.setVisible(true);
             phoneCallsPromptjLabel2.setVisible(true);
             fullPathToPhoneCallsXMLjTextField2.setVisible(true);
+            fullPathToPhoneCallsXMLjTextField2.requestFocusInWindow();  // Set cursor to blinking in this text field.
         } else {
             if (!backupTextMessagesjRadioButton1.isSelected()) {
                 backupNowjButton1.setVisible(false);
@@ -198,17 +177,12 @@ public class MainJPanel extends javax.swing.JPanel {
     }//GEN-LAST:event_backupPhoneCallsjRadioButton2ActionPerformed
 
     private void backupNowjButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_backupNowjButton1ActionPerformed
-        outputjLabel1.setVisible(true);
-        outputjTextArea1.setVisible(true);
         if (backupTextMessagesjRadioButton1.isSelected() && backupPhoneCallsjRadioButton2.isSelected()) {  // User wants to backup both text messages and phone calls.
             TextMessagesBackup backup = new TextMessagesBackup();
             try {
                 String[] args = {fullPathToTextMessagesXMLjTextField1.getText()};
-                backup.output = this.outputjTextArea1;
                 backup.main(args);
             } catch (Exception ex) {
-                outputjLabel1.setVisible(false);
-                outputjTextArea1.setVisible(false);
                 JOptionPane.showMessageDialog(null, "There was a problem trying to backup your text messages: " + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
             }
 
@@ -219,41 +193,29 @@ public class MainJPanel extends javax.swing.JPanel {
 
             try {
                 String[] args2 = {fullPathToPhoneCallsXMLjTextField2.getText()};
-                backup2.output = this.outputjTextArea1;
                 backup2.main(args2);
             } catch (Exception ex) {
-                outputjLabel1.setVisible(false);
-                outputjTextArea1.setVisible(false);
                 JOptionPane.showMessageDialog(null, "There was a problem trying to backup your phone calls: " + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
             }
         } else if (backupPhoneCallsjRadioButton2.isSelected()) {
             CallsBackup backup = new CallsBackup();
             try {
                 String[] args = {fullPathToPhoneCallsXMLjTextField2.getText()};
-                backup.output = this.outputjTextArea1;
                 backup.main(args);
             } catch (Exception ex) {
-                outputjLabel1.setVisible(false);
-                outputjTextArea1.setVisible(false);
                 JOptionPane.showMessageDialog(null, "There was a problem trying to backup your phone calls: " + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
             }
         } else { // Only backup text messages.
             TextMessagesBackup backup = new TextMessagesBackup();
             try {
                 String[] args = {fullPathToTextMessagesXMLjTextField1.getText()};
-                backup.output = this.outputjTextArea1;
                 backup.main(args);
             } catch (Exception ex) {
-                outputjLabel1.setVisible(false);
-                outputjTextArea1.setVisible(false);
                 JOptionPane.showMessageDialog(null, "There was a problem trying to backup your text messages: " + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
             }
         }
     }//GEN-LAST:event_backupNowjButton1ActionPerformed
 
-    public void showOutput(String s) {
-        outputjTextArea1.append(s);
-    }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton backupNowjButton1;
@@ -263,9 +225,6 @@ public class MainJPanel extends javax.swing.JPanel {
     private javax.swing.JTextField fullPathToTextMessagesXMLjTextField1;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
-    private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JLabel outputjLabel1;
-    private javax.swing.JTextArea outputjTextArea1;
     private javax.swing.JLabel phoneCallsPromptjLabel2;
     private javax.swing.JLabel textMessagesPromptjLabel1;
     // End of variables declaration//GEN-END:variables

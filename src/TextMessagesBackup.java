@@ -20,17 +20,16 @@ class TextMessagesBackup {
     //to the database (this would happen if more than one message was sent/received from the same contact).
     public static LinkedList<String> phoneNumbers = new LinkedList<>();
     //create the connection to the database
-    public static JTextArea output = null;  //  text area to display output
 
     public static void main(String[] args) throws IOException, SQLException {
-        Connection conn = new MySQLMethods(null).getConnection();
+        Connection conn = new MySQLMethods().getConnection();
         // Get the path, replacing common invalid characters such as quotes.
         String path = args[0].replace("\"", "");
 
         // Get a connection to the file that contains the text messages.
         File file = new File(path);  // Full file path to the text messages XML file.
         if (!file.exists()) { //we might not want to add text to a file that already existed
-            output.append("\nFile does not exist.");
+            System.out.println("File does not exist.");
             throw new FileNotFoundException("Path to text messages XML file does not exist.");
         }
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
@@ -46,15 +45,18 @@ class TextMessagesBackup {
                     String mmsText = "";  // Text contained in the mms message.
                     boolean mmsContainsText = false;  // Whether or not the mms contains text. If it does not contain text.
 
-                    output.append("\nAbout to start backing up your text messages.");
-                    output.append("\nThis program will NOT remove any text messages already in the database.");
-                    output.append("\nThis may take a several minutes.\n");
+                    System.out.println("About to start backing up your text messages.");
+                    System.out.println("This program will NOT remove any text messages already in the database.");
+                    System.out.println("This may take a several minutes.\n");
 
                     // recipientCount ~ the number of people a message was sent to
                     int recipientCount = 0;
                     LinkedList<String> mmsGroupMessagePhoneNumbers = new LinkedList<>();  // Will hold all the phone numbers that a group message was sent to.
                     String alsoSentTo = "Recipients: ";  // A string that will tell who else a group message was sent to.
                     String groupMessagePhoneNumber = "";  // Used to store the number for a group message. This will be needed if the message comes from a number that is not associated with a contact name.
+
+                    JOptionPane.showMessageDialog(null, "Getting ready to backup text messages. This may take a few minutes.", "Backing Up Text Messages", JOptionPane.INFORMATION_MESSAGE);
+
                     while ((currLine = br.readLine()) != null) {
                         if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
 //messageQueue is the actual text of the currently viewed message. The text is between  body= and toa=" in the line.
@@ -83,7 +85,7 @@ class TextMessagesBackup {
 /////////////Check to see if the contact already exists in the database.//////////
 /////////////If not, then create new contact only if user wants to.///////////////
 //////////////////////////////////////////////////////////////////////////////////
-                            new MySQLMethods(output).handleContact(contactName, phoneNumber, phoneNumbers);
+                            new MySQLMethods().handleContact(contactName, phoneNumber, phoneNumbers);
 /////////////////////////////////////////////////////////////////////////////////////////////
 ////////Finished inserting new contact (if applicable).//////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -95,11 +97,11 @@ class TextMessagesBackup {
 /////////////Check to see if the sms message already exists in the database.//////
 //////////////////////////////////////////////////////////////////////////////////
                             try {
-                                if (messageExists(new MySQLMethods(output).createSQLTimestamp(timestamp), contactName)) {
+                                if (messageExists(new MySQLMethods().createSQLTimestamp(timestamp), contactName)) {
                                     continue;
                                 }
                             } catch (Exception ex) {
-                                output.append("\nException trying to check if a text message exists: " + ex);
+                                System.out.println("Exception trying to check if a text message exists: " + ex);
                             }
 /////////////////////////////////////////////////////////////////////////////////////////////
 ////////Finished checking if the sms message exists in the database./////////////////////////
@@ -119,22 +121,21 @@ class TextMessagesBackup {
 
                                 String sql = "";
                                 try {
-                                    sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('" + messageQueue + "', " + incomingMessage + ", (SELECT id FROM contacts WHERE name = '" + contactName + "'), '" + new MySQLMethods(output).createSQLTimestamp(timestamp) + "'); ";
+                                    sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('" + messageQueue + "', " + incomingMessage + ", (SELECT id FROM contacts WHERE name = '" + contactName + "'), '" + new MySQLMethods().createSQLTimestamp(timestamp) + "'); ";
                                 } catch (Exception ex) {
-                                    output.append("\nException: " + ex);
+                                    System.out.println("Exception: " + ex);
                                     continue;   // Don't want to continue trying to insert into the database for this message.
                                 }
                                 sqlInsert = sql;
 
                                 PreparedStatement preparedStatement = conn.prepareStatement(sql);
                                 preparedStatement.executeUpdate();
-                                output.append("\nsql insert: " + sql);
+                                System.out.println("sql insert: " + sql);
                             } catch (SQLException sqle) {
-                                output.append("\nSQL Exception ...: " + sqle);
-                                output.append("\nSMS Insertion failure: " + sqlInsert);
-                                output.append(currLine + "\n");
+                                System.out.println("SQL Exception ...: " + sqle);
+                                System.out.println("SMS Insertion failure: " + sqlInsert);
                             } catch (ClassNotFoundException cnfe) {
-                                output.append("\nClassNotFoundException: " + cnfe);
+                                System.out.println("ClassNotFoundException: " + cnfe);
                             }
                         } else { // mms (occurs on multiple lines)
                             if (currLine.contains("type=\"151\"")) {  // The recipient of the mms message. If there are more than one recipients, then this is a group message.
@@ -164,7 +165,7 @@ class TextMessagesBackup {
                                 }
 
                                 // Check to see that the sender is already in the db.
-                                new MySQLMethods(output).handleContact(mmsContactName, mmsPhoneNumber, phoneNumbers);
+                                new MySQLMethods().handleContact(mmsContactName, mmsPhoneNumber, phoneNumbers);
                             }
                             if (currLine.contains("ct=\"text/plain\"")) {  // Is a line with text. Indicate that this text message has a picture.
                                 mmsContainsText = true;
@@ -196,13 +197,13 @@ class TextMessagesBackup {
 /////////////Check to see if the mms message already exists in the database.//////
 //////////////////////////////////////////////////////////////////////////////////
                                 try {
-                                    if (messageExists(new MySQLMethods(output).createSQLTimestamp(mmsDate), mmsContactName)) {
+                                    if (messageExists(new MySQLMethods().createSQLTimestamp(mmsDate), mmsContactName)) {
                                         // Reset the recipient count next message.
                                         recipientCount = 0;
                                         continue;
                                     }
                                 } catch (Exception ex) {
-                                    output.append("\nException trying to check if an mms text message exists: " + ex);
+                                    System.out.println("Exception trying to check if an mms text message exists: " + ex);
                                 }
                                 String sql = "";
                                 try {
@@ -214,29 +215,28 @@ class TextMessagesBackup {
                                     try {
                                         if (recipientCount >= 2) {
                                             if (mmsContainsText) {
-                                                sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[GROUP MSG] " + mmsText + "\\n\\n" + alsoSentTo + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLMethods(output).createSQLTimestamp(mmsDate) + "'); ";
+                                                sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[GROUP MSG] " + mmsText + "\\n\\n" + alsoSentTo + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
                                             } else {
-                                                sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[GROUP MSG PIC]" + "\\n\\n" + alsoSentTo + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLMethods(output).createSQLTimestamp(mmsDate) + "'); ";
+                                                sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[GROUP MSG PIC]" + "\\n\\n" + alsoSentTo + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
                                             }
                                         } else if (mmsContainsText) {
-                                            sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLMethods(output).createSQLTimestamp(mmsDate) + "'); ";
+                                            sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
                                         } else {
-                                            sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLMethods(output).createSQLTimestamp(mmsDate) + "'); ";
+                                            sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
                                         }
                                     } catch (Exception ex) {
-                                        output.append("\nException: " + ex);
+                                        System.out.println("Exception: " + ex);
                                     }
 
                                     mmsContainsText = false;  // Reset so we don't accidentally reinsert a message.
                                     PreparedStatement preparedStatement = conn.prepareStatement(sql);
                                     preparedStatement.executeUpdate();
-                                    output.append("\nSuccessfully inserted a new MMS message: " + sql);
+                                    System.out.println("Successfully inserted a new MMS message: " + sql);
                                 } catch (SQLException sqle) {
-                                    output.append("\nSQL Exception ...: " + sqle);
-                                    output.append("\nInsertion failure: " + sql);
-                                    output.append(currLine + "\n");
+                                    System.out.println("SQL Exception ...: " + sqle);
+                                    System.out.println("Insertion failure: " + sql);
                                 } catch (ClassNotFoundException cnfe) {
-                                    output.append("\nClassNotFoundException: " + cnfe);
+                                    System.out.println("ClassNotFoundException: " + cnfe);
                                 }
 
                                 // Reset the recipient count for next message.
@@ -252,7 +252,7 @@ class TextMessagesBackup {
                     }
                 }
             } catch (SQLException sqle) {
-                output.append("\nSQL Exception :) => " + sqle);
+                System.out.println("SQL Exception :) => " + sqle);
             }
         }
     }
@@ -311,13 +311,13 @@ class TextMessagesBackup {
             System.err.println("Got an exception! ");
             System.err.println(e.getMessage());
         } finally {
-            new MySQLMethods(output).closeConnection(conn);
+            new MySQLMethods().closeConnection(conn);
         }
         return exists;
     }
 
     public static String getContactName(String phoneNumber) {
-        Connection conn = new MySQLMethods(null).getConnection();
+        Connection conn = new MySQLMethods().getConnection();
         try {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
@@ -347,7 +347,7 @@ class TextMessagesBackup {
             System.err.println("Got an exception! ");
             System.err.println(e.getMessage());
         } finally {
-            new MySQLMethods(output).closeConnection(conn);
+            new MySQLMethods().closeConnection(conn);
         }
 
         // No contact existed with that phone number. So, just return the number itself.
