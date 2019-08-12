@@ -1,3 +1,3 @@
 cd C:\xampp\mysql\bin
-mysql -u "root" < "%~dp0createDatabase.sql"
+mysql -u "root" < "%~dp0create_database.sql"
 exit

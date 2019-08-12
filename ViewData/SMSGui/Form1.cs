@@ -39,7 +39,7 @@ namespace SMSGui
 
 
             //Create the SQL statement that gets the number of the last submitted refill request.
-            string sql = "SELECT DISTINCT c.name FROM messages m JOIN(SELECT * FROM contacts) c ON c.id = m.contact ORDER BY c.name; ";
+            string sql = "SELECT DISTINCT c.name FROM text_messages m JOIN(SELECT * FROM contacts) c ON c.id = m.contact_id ORDER BY c.name; ";
 
             connection = new MySqlConnection(connStr);    //create the new connection using the parameters of connStr
             try
@@ -81,7 +81,7 @@ namespace SMSGui
 
 
             //Create the SQL statement that gets the number of the last submitted refill request.
-            string sql = "SELECT * FROM messages m join (SELECT id FROM contacts WHERE name = '" + contactName + "') c ON c.id = m.contact ORDER BY m.sent_timestamp ASC;";
+            string sql = "SELECT * FROM text_messages m join (SELECT id FROM contacts WHERE name = '" + contactName + "') c ON c.id = m.contact_id ORDER BY m.sent_timestamp ASC;";
 
             connection = new MySqlConnection(connStr);    //create the new connection using the parameters of connStr
             try

@@ -10,7 +10,7 @@ namespace SMSGui
     {
 
         //Below are the definitions for the connection to the database. 
-        public string connection = "server=localhost;user=root;database=sms;port=3306;password=;";
+        public string connection = "server=localhost;user=root;database=phone_backup;port=3306;password=;";
 
         public string quoteFilter(string str)
         {

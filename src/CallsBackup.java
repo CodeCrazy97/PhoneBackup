@@ -1,43 +1,50 @@
+
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
 import java.util.LinkedList;
-import java.util.Scanner;
+import javax.swing.JOptionPane;
+import javax.swing.JTextArea;
 
 class CallsBackup {
 
+    //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
+    //having to confirm more than once whether or not to allow the program to create a new contact. Without the
+    //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
+    //to the database (this would happen if more than one message was sent/received from the same contact).
+    public static LinkedList< String> phoneNumbers = new LinkedList<>();
+    public static JTextArea output = null;  //  text area to display output
     public static void main(String[] args) throws IOException, SQLException {
-
+        // Get the path, replacing common invalid characters such as quotes.
+        String path = args[0].replace("\"", "");
+        
         //Read through the new text messages.
-        File file = new File("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\calls-20190708125353.xml");
+        File file = new File(path);
         if (!file.exists()) { //we might not want to add text to a file that already existed
-            System.out.println("File does not exist.");
-            System.exit(0);
+            output.append("\nFile does not exist.");
+            throw new FileNotFoundException("Path to phone calls XML file does not exist.");
         }
-
-        //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
-        //having to confirm more than once whether or not to allow the program to create a new contact. Without the
-        //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
-        //to the database (this would happen if more than one message was sent/received from the same contact).
-        LinkedList< String> phoneNumbers = new LinkedList<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
 
             String currLine;  //The line in the file currently being viewed by the program. The xml file is
             //broken up by lines; so, one line represents a single text message.
-            
-            System.out.println("About to start backing up your phone calls.");
-            System.out.println("This program will NOT remove any phone calls already in the database.");
-            System.out.println("This may take a few minutes.\n");
-            
+
+            output.append("\nAbout to start backing up your phone calls.");
+            output.append("\nThis program will NOT remove any phone calls already in the database.");
+            output.append("\nThis may take a few minutes.\n");
+
             while ((currLine = br.readLine()) != null) {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
                     //create the connection to the database
-                    Connection conn = new MySQLConnection().getConnection();
- 
+                    Connection conn = new MySQLMethods(output).getConnection();
+
                     try {
+                        String phoneNumber = currLine.substring(currLine.indexOf("call number=\"") + 13, currLine.indexOf("\" duration"));
+                        output.append("\nPHONE NUMBER: " + phoneNumber);
                         String duration = currLine.substring(currLine.indexOf("duration=\"") + 10, currLine.indexOf("\" date="));
                         String callTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                         String contactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.indexOf("\" />"));
@@ -52,8 +59,8 @@ class CallsBackup {
                         Class.forName(myDriver);
 
                         try {  // check that the call does not already xist in the database
-                            String query = "SELECT COUNT(*) FROM phonecalls WHERE call_timestamp = '" + new MySQLConnection().createSQLTimestamp(callTimestamp) + "'; ";
-                            System.out.println("query: " + query);
+                            String query = "SELECT COUNT(*) FROM phone_calls WHERE call_timestamp = '" + new MySQLMethods(output).createSQLTimestamp(callTimestamp) + "'; ";
+                            output.append("\nquery: " + query);
                             // create the java statement
                             Statement st = conn.createStatement();
 
@@ -78,28 +85,32 @@ class CallsBackup {
                         try {  // now try inserting the call into the database
                             Class.forName("com.mysql.jdbc.Driver");
 
-                            String sql = "INSERT INTO phonecalls (contactname, call_timestamp, duration, incoming) VALUES ('" + contactName + "', '" + new MySQLConnection().createSQLTimestamp(callTimestamp) + "', " + duration + ", " + incoming + "); ";
+                            // First, check to see that the contact exists in the database.
+                            new MySQLMethods(output).handleContact(contactName, phoneNumber, phoneNumbers);
+
+                            String sql = "INSERT INTO phone_calls (contact_id, call_timestamp, duration, incoming) VALUES ((SELECT id FROM contacts WHERE name = '" + contactName + "'), '" + new MySQLMethods(output).createSQLTimestamp(callTimestamp) + "', " + duration + ", " + incoming + "); ";
 
                             PreparedStatement preparedStatement = conn.prepareStatement(sql);
                             preparedStatement.executeUpdate();
 
-                            System.out.println("SQL insert statement: " + sql);
+                            output.append("\nSQL insert statement: " + sql);
                         } catch (SQLException sqle) {
-                            System.out.println("SQL Exception: " + sqle);
+                            output.append("\nSQL Exception: " + sqle);
                         } catch (ClassNotFoundException cnfe) {
-                            System.out.println("ClassNotFoundException: " + cnfe);
+                            output.append("\nClassNotFoundException: " + cnfe);
                         }
                     } catch (Exception ex) {
-                        System.out.println("Exception : " + ex);
+                        output.append("\nException : " + ex);
                     } finally {
                         conn.close();
                     }
                 }
             }
+            JOptionPane.showMessageDialog(null, "Finished backing up phone calls.", "Success!", JOptionPane.INFORMATION_MESSAGE);
         } catch (SQLException ex) {
-            System.out.println(" SQL Exception : " + ex);
+            output.append("\n SQL Exception : " + ex);
         } catch (IOException ex) {
-            System.out.println("IOException : " + ex);
+            output.append("\nIOException : " + ex);
         }
     }
 
