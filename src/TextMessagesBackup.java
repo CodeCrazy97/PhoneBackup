@@ -55,7 +55,7 @@ class TextMessagesBackup {
                     String alsoSentTo = "Recipients: ";  // A string that will tell who else a group message was sent to.
                     String groupMessagePhoneNumber = "";  // Used to store the number for a group message. This will be needed if the message comes from a number that is not associated with a contact name.
 
-                    JOptionPane.showMessageDialog(null, "Getting ready to backup text messages. This may take a few minutes.", "Backing Up Text Messages", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(null, "Getting ready to backup text messages. Click OK to continue. This may take a few minutes.", "Backing Up Text Messages", JOptionPane.INFORMATION_MESSAGE);
 
                     while ((currLine = br.readLine()) != null) {
                         if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.

@@ -191,7 +191,6 @@ class MySQLMethods {
     }
 
     public static void handleContact(String contactName, String phoneNumber, LinkedList<String> phoneNumbers) {
-        JOptionPane.showMessageDialog(null, "\nChecking contact...name = " + contactName + ", phone = " + phoneNumber);
         boolean addContact = false;
         Connection conn = getConnection();
         if (!phoneNumbers.contains(phoneNumber)) {  //If this phone number has not been viewed before...

@@ -33,7 +33,7 @@ class CallsBackup {
             String currLine;  //The line in the file currently being viewed by the program. The xml file is
             //broken up by lines; so, one line represents a single text message.
 
-            JOptionPane.showMessageDialog(null, "Getting ready to backup phone calls. This may take a few minutes.", "Backing Up Phone Calls", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Getting ready to backup phone calls. Click OK to continue. This may take a few minutes.", "Backing Up Phone Calls", JOptionPane.INFORMATION_MESSAGE);
 
             while ((currLine = br.readLine()) != null) {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
