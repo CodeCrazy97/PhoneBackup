@@ -23,13 +23,17 @@ class TextMessagesBackup {
 
     public static void main(String[] args) throws IOException, SQLException {
         Connection conn = new MySQLMethods().getConnection();
+        if (conn == null) {
+            JOptionPane.showMessageDialog(null, "Unable to connect to the database. Please check the connection. Try manually starting MySQL server.");
+            return;
+        }
         // Get the path, replacing common invalid characters such as quotes.
         String path = args[0].replace("\"", "");
 
         // Get a connection to the file that contains the text messages.
         File file = new File(path);  // Full file path to the text messages XML file.
         if (!file.exists()) { //we might not want to add text to a file that already existed
-            System.out.println("File does not exist.");
+            JOptionPane.showMessageDialog(null, "File does not exist.");
             throw new FileNotFoundException("Path to text messages XML file does not exist.");
         }
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
@@ -44,10 +48,6 @@ class TextMessagesBackup {
                     String mmsDate = "";  // The date the mms message was sent.
                     String mmsText = "";  // Text contained in the mms message.
                     boolean mmsContainsText = false;  // Whether or not the mms contains text. If it does not contain text.
-
-                    System.out.println("About to start backing up your text messages.");
-                    System.out.println("This program will NOT remove any text messages already in the database.");
-                    System.out.println("This may take a several minutes.\n");
 
                     // recipientCount ~ the number of people a message was sent to
                     int recipientCount = 0;
@@ -101,7 +101,7 @@ class TextMessagesBackup {
                                     continue;
                                 }
                             } catch (Exception ex) {
-                                System.out.println("Exception trying to check if a text message exists: " + ex);
+                                JOptionPane.showMessageDialog(null, "Exception trying to check if a text message exists: " + ex);
                             }
 /////////////////////////////////////////////////////////////////////////////////////////////
 ////////Finished checking if the sms message exists in the database./////////////////////////
@@ -123,19 +123,19 @@ class TextMessagesBackup {
                                 try {
                                     sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('" + messageQueue + "', " + incomingMessage + ", (SELECT id FROM contacts WHERE name = '" + contactName + "'), '" + new MySQLMethods().createSQLTimestamp(timestamp) + "'); ";
                                 } catch (Exception ex) {
-                                    System.out.println("Exception: " + ex);
+                                    JOptionPane.showMessageDialog(null, "Exception: " + ex);
                                     continue;   // Don't want to continue trying to insert into the database for this message.
                                 }
                                 sqlInsert = sql;
 
                                 PreparedStatement preparedStatement = conn.prepareStatement(sql);
                                 preparedStatement.executeUpdate();
-                                System.out.println("sql insert: " + sql);
+                                System.out.println(sql);
                             } catch (SQLException sqle) {
-                                System.out.println("SQL Exception ...: " + sqle);
-                                System.out.println("SMS Insertion failure: " + sqlInsert);
+                                JOptionPane.showMessageDialog(null, "SQL Exception ...: " + sqle);
+                                JOptionPane.showMessageDialog(null, "SMS Insertion failure: " + sqlInsert);
                             } catch (ClassNotFoundException cnfe) {
-                                System.out.println("ClassNotFoundException: " + cnfe);
+                                JOptionPane.showMessageDialog(null, "ClassNotFoundException: " + cnfe);
                             }
                         } else { // mms (occurs on multiple lines)
                             if (currLine.contains("type=\"151\"")) {  // The recipient of the mms message. If there are more than one recipients, then this is a group message.
@@ -203,7 +203,7 @@ class TextMessagesBackup {
                                         continue;
                                     }
                                 } catch (Exception ex) {
-                                    System.out.println("Exception trying to check if an mms text message exists: " + ex);
+                                    JOptionPane.showMessageDialog(null, "Exception trying to check if an mms text message exists: " + ex);
                                 }
                                 String sql = "";
                                 try {
@@ -225,18 +225,17 @@ class TextMessagesBackup {
                                             sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
                                         }
                                     } catch (Exception ex) {
-                                        System.out.println("Exception: " + ex);
+                                        JOptionPane.showMessageDialog(null, "Exception: " + ex);
                                     }
 
                                     mmsContainsText = false;  // Reset so we don't accidentally reinsert a message.
                                     PreparedStatement preparedStatement = conn.prepareStatement(sql);
                                     preparedStatement.executeUpdate();
-                                    System.out.println("Successfully inserted a new MMS message: " + sql);
+                                    System.out.println(sql);
                                 } catch (SQLException sqle) {
-                                    System.out.println("SQL Exception ...: " + sqle);
-                                    System.out.println("Insertion failure: " + sql);
+                                    JOptionPane.showMessageDialog(null, "SQL Exception ...: " + sqle + "\nInsertion failure: " + sql);
                                 } catch (ClassNotFoundException cnfe) {
-                                    System.out.println("ClassNotFoundException: " + cnfe);
+                                    JOptionPane.showMessageDialog(null, "ClassNotFoundException: " + cnfe);
                                 }
 
                                 // Reset the recipient count for next message.
@@ -252,7 +251,7 @@ class TextMessagesBackup {
                     }
                 }
             } catch (SQLException sqle) {
-                System.out.println("SQL Exception :) => " + sqle);
+                JOptionPane.showMessageDialog(null, "SQL Exception :) => " + sqle);
             }
         }
     }
@@ -308,8 +307,7 @@ class TextMessagesBackup {
             st.close();
             conn.close();
         } catch (Exception e) {
-            System.err.println("Got an exception! ");
-            System.err.println(e.getMessage());
+            JOptionPane.showMessageDialog(null, "Got an exception: " + e.getMessage());
         } finally {
             new MySQLMethods().closeConnection(conn);
         }
@@ -344,8 +342,7 @@ class TextMessagesBackup {
             rs.close();
             st.close();
         } catch (Exception e) {
-            System.err.println("Got an exception! ");
-            System.err.println(e.getMessage());
+            JOptionPane.showMessageDialog(null, "Got an exception : " + e.getMessage());
         } finally {
             new MySQLMethods().closeConnection(conn);
         }

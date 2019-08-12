@@ -1,6 +1,10 @@
 
+import java.io.BufferedReader;
+import javax.swing.JOptionPane;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -16,16 +20,32 @@ import javax.swing.JTextArea;
 class MySQLMethods {
 
     public MySQLMethods() {
-        
+
     }
 
     public static Connection getConnection() {
         // Try getting a connection to the database. 
         Connection conn = null;
+
+        boolean result = isRunning("mysqld.exe");
+        if (!result) {
+            try {
+                Runtime.getRuntime().exec("C:\\xampp\\mysql\\bin\\mysqld.exe", null, new File("C:\\xampp\\mysql\\bin"));
+            } catch (IOException ex) {
+                JOptionPane.showMessageDialog(null, "Exception sleeping: " + ex);
+            }
+            try {
+                //Force the program to wait for mysql to start.
+                Thread.sleep(9500);
+            } catch (InterruptedException ex) {
+                JOptionPane.showMessageDialog(null, "Exception sleeping: " + ex);
+            }
+        }
         try {
             conn = DriverManager.getConnection(
                     "jdbc:mysql://localhost:3306/phone_backup", "root", "");
         } catch (Exception ex) {
+
             // If the database does not exist, then run the sql script that creates it.
             String basePath = new File("").getAbsolutePath();
             if (ex.getMessage().equals("Unknown database 'phone_backup'")) {  // Database was not created. Run the script that creates it.
@@ -34,12 +54,12 @@ class MySQLMethods {
                 try {
                     Runtime.getRuntime().exec("cmd /c start \"\" \"" + createDB + "\"");
                 } catch (IOException ex1) {
-                    System.out.println("IOException: " + ex1);
+                    JOptionPane.showMessageDialog(null, "IOException: " + ex1);
                 }
                 try {
                     Thread.sleep(750);  // Wait a few seconds before trying to establish a connection to the database that was just created.
                 } catch (InterruptedException ex1) {
-                    System.out.println("Exception sleeping: " + ex1);
+                    JOptionPane.showMessageDialog(null, "Exception sleeping: " + ex1);
                 }
 
                 // Now try getting a connection to the database, since it should be created.
@@ -47,7 +67,7 @@ class MySQLMethods {
                     conn = DriverManager.getConnection(
                             "jdbc:mysql://localhost:3306/phone_backup", "root", "");
                 } catch (SQLException ex1) {
-                    System.out.println("Exception trying to get a connection to the database: " + ex1);
+                    JOptionPane.showMessageDialog(null, "Exception trying to get a connection to the database: " + ex1);
                 }
             }
         }
@@ -129,12 +149,49 @@ class MySQLMethods {
         try {
             conn.close();
         } catch (SQLException ex) {
-            System.out.println("Exception trying to close the connection: " + ex.getMessage());;
+            JOptionPane.showMessageDialog(null, "Exception trying to close the connection: " + ex.getMessage());;
         }
     }
 
+    public static boolean isRunning(String process) {
+        boolean found = false;
+        try {
+            File file = File.createTempFile("realhowto", ".vbs");
+            file.deleteOnExit();
+            FileWriter fw = new java.io.FileWriter(file);
+
+            String vbs = "Set WshShell = WScript.CreateObject(\"WScript.Shell\")\n"
+                    + "Set locator = CreateObject(\"WbemScripting.SWbemLocator\")\n"
+                    + "Set service = locator.ConnectServer()\n"
+                    + "Set processes = service.ExecQuery _\n"
+                    + " (\"select * from Win32_Process where name='" + process + "'\")\n"
+                    + "For Each process in processes\n"
+                    + "wscript.echo process.Name \n"
+                    + "Next\n"
+                    + "Set WSHShell = Nothing\n";
+
+            fw.write(vbs);
+            fw.close();
+            Process p = Runtime.getRuntime().exec("cscript //NoLogo " + file.getPath());
+            BufferedReader input
+                    = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line;
+            line = input.readLine();
+            if (line != null) {
+                if (line.equals(process)) {
+                    found = true;
+                }
+            }
+            input.close();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return found;
+    }
+
     public static void handleContact(String contactName, String phoneNumber, LinkedList<String> phoneNumbers) {
-        System.out.println("\nChecking contact...name = " + contactName + ", phone = " + phoneNumber);
+        JOptionPane.showMessageDialog(null, "\nChecking contact...name = " + contactName + ", phone = " + phoneNumber);
         boolean addContact = false;
         Connection conn = getConnection();
         if (!phoneNumbers.contains(phoneNumber)) {  //If this phone number has not been viewed before...
@@ -173,18 +230,17 @@ class MySQLMethods {
 
                         PreparedStatement preparedStatement = conn.prepareStatement(sql);
                         preparedStatement.executeUpdate();
-
+                        System.out.println(sql);
                     } catch (SQLException sqle) {
-                        System.out.println("SQL Exception: " + sqle);
+                        JOptionPane.showMessageDialog(null, "SQL Exception: " + sqle);
                     } catch (ClassNotFoundException cnfe) {
-                        System.out.println("ClassNotFoundException: " + cnfe);
+                        JOptionPane.showMessageDialog(null, "ClassNotFoundException: " + cnfe);
                     }
                 }
                 st.close();
                 closeConnection(conn);
             } catch (Exception e) {
-                System.err.println("Got an exception! ");
-                System.err.println(e.getMessage());
+                JOptionPane.showMessageDialog(null, e.getMessage());
                 closeConnection(conn);
             }
         }

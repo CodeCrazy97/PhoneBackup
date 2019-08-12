@@ -24,7 +24,7 @@ class CallsBackup {
         //Read through the new text messages.
         File file = new File(path);
         if (!file.exists()) { //we might not want to add text to a file that already existed
-            System.out.println("File does not exist.");
+            JOptionPane.showMessageDialog(null, "File does not exist.");
             throw new FileNotFoundException("Path to phone calls XML file does not exist.");
         }
 
@@ -33,20 +33,18 @@ class CallsBackup {
             String currLine;  //The line in the file currently being viewed by the program. The xml file is
             //broken up by lines; so, one line represents a single text message.
 
-            System.out.println("About to start backing up your phone calls.");
-            System.out.println("This program will NOT remove any phone calls already in the database.");
-            System.out.println("This may take a few minutes.\n");
-
             JOptionPane.showMessageDialog(null, "Getting ready to backup phone calls. This may take a few minutes.", "Backing Up Phone Calls", JOptionPane.INFORMATION_MESSAGE);
 
             while ((currLine = br.readLine()) != null) {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
                     //create the connection to the database
                     Connection conn = new MySQLMethods().getConnection();
-
+                    if (conn == null) {
+                        JOptionPane.showMessageDialog(null, "Unable to connect to the database. Please check the connection. Try manually starting MySQL server.");
+                        return;
+                    }
                     try {
                         String phoneNumber = currLine.substring(currLine.indexOf("call number=\"") + 13, currLine.indexOf("\" duration"));
-                        System.out.println("PHONE NUMBER: " + phoneNumber);
                         String duration = currLine.substring(currLine.indexOf("duration=\"") + 10, currLine.indexOf("\" date="));
                         String callTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                         String contactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.indexOf("\" />"));
@@ -62,7 +60,7 @@ class CallsBackup {
 
                         try {  // check that the call does not already xist in the database
                             String query = "SELECT COUNT(*) FROM phone_calls WHERE call_timestamp = '" + new MySQLMethods().createSQLTimestamp(callTimestamp) + "'; ";
-                            System.out.println("query: " + query);
+
                             // create the java statement
                             Statement st = conn.createStatement();
 
@@ -94,15 +92,14 @@ class CallsBackup {
 
                             PreparedStatement preparedStatement = conn.prepareStatement(sql);
                             preparedStatement.executeUpdate();
-
-                            System.out.println("SQL insert statement: " + sql);
+                            System.out.println(sql);
                         } catch (SQLException sqle) {
-                            System.out.println("SQL Exception: " + sqle);
+                            JOptionPane.showMessageDialog(null, "SQL Exception: " + sqle);
                         } catch (ClassNotFoundException cnfe) {
-                            System.out.println("ClassNotFoundException: " + cnfe);
+                            JOptionPane.showMessageDialog(null, "ClassNotFoundException: " + cnfe);
                         }
                     } catch (Exception ex) {
-                        System.out.println("Exception : " + ex);
+                        JOptionPane.showMessageDialog(null, "Exception : " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
                     } finally {
                         conn.close();
                     }
@@ -110,9 +107,9 @@ class CallsBackup {
             }
             JOptionPane.showMessageDialog(null, "Finished backing up phone calls.", "Success!", JOptionPane.INFORMATION_MESSAGE);
         } catch (SQLException ex) {
-            System.out.println(" SQL Exception : " + ex);
+            JOptionPane.showMessageDialog(null, " SQL Exception : " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
         } catch (IOException ex) {
-            System.out.println("IOException : " + ex);
+            JOptionPane.showMessageDialog(null, "IOException : " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
         }
     }
 

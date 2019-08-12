@@ -183,7 +183,7 @@ public class MainJPanel extends javax.swing.JPanel {
                 String[] args = {fullPathToTextMessagesXMLjTextField1.getText()};
                 backup.main(args);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(null, "There was a problem trying to backup your text messages: " + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, "There was a problem trying to backup your text messages: " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
             }
 
             CallsBackup backup2 = new CallsBackup();
@@ -195,7 +195,7 @@ public class MainJPanel extends javax.swing.JPanel {
                 String[] args2 = {fullPathToPhoneCallsXMLjTextField2.getText()};
                 backup2.main(args2);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(null, "There was a problem trying to backup your phone calls: " + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, "There was a problem trying to backup your phone calls: " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
             }
         } else if (backupPhoneCallsjRadioButton2.isSelected()) {
             CallsBackup backup = new CallsBackup();
@@ -203,7 +203,7 @@ public class MainJPanel extends javax.swing.JPanel {
                 String[] args = {fullPathToPhoneCallsXMLjTextField2.getText()};
                 backup.main(args);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(null, "There was a problem trying to backup your phone calls: " + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, "There was a problem trying to backup your phone calls: " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
             }
         } else { // Only backup text messages.
             TextMessagesBackup backup = new TextMessagesBackup();
@@ -211,7 +211,7 @@ public class MainJPanel extends javax.swing.JPanel {
                 String[] args = {fullPathToTextMessagesXMLjTextField1.getText()};
                 backup.main(args);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(null, "There was a problem trying to backup your text messages: " + ex.getMessage(), "ERROR", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(null, "There was a problem trying to backup your text messages: " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
             }
         }
     }//GEN-LAST:event_backupNowjButton1ActionPerformed
