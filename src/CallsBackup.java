@@ -6,8 +6,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
 import java.util.LinkedList;
-import javax.swing.JOptionPane;
-import javax.swing.JTextArea;
 
 class CallsBackup {
 
@@ -24,7 +22,7 @@ class CallsBackup {
         //Read through the new text messages.
         File file = new File(path);
         if (!file.exists()) { //we might not want to add text to a file that already existed
-            JOptionPane.showMessageDialog(null, "File does not exist.");
+            System.out.println("File does not exist.");
             throw new FileNotFoundException("Path to phone calls XML file does not exist.");
         }
 
@@ -33,14 +31,14 @@ class CallsBackup {
             String currLine;  //The line in the file currently being viewed by the program. The xml file is
             //broken up by lines; so, one line represents a single text message.
 
-            JOptionPane.showMessageDialog(null, "Getting ready to backup phone calls. Click OK to continue. This may take a few minutes.", "Backing Up Phone Calls", JOptionPane.INFORMATION_MESSAGE);
+            System.out.println("Getting ready to backup phone calls. Click OK to continue. This may take a few minutes.");
 
             while ((currLine = br.readLine()) != null) {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
                     //create the connection to the database
                     Connection conn = new MySQLMethods().getConnection();
                     if (conn == null) {
-                        JOptionPane.showMessageDialog(null, "Unable to connect to the database. Please check the connection. Try manually starting MySQL server.");
+                        System.out.println("Unable to connect to the database. Please check the connection. Try manually starting MySQL server.");
                         return;
                     }
                     try {
@@ -85,8 +83,8 @@ class CallsBackup {
                         try {  // now try inserting the call into the database
                             Class.forName("com.mysql.jdbc.Driver");
 
-                            if (!phoneNumbers.contains(contactName)) {
-                                // First, check to see that the contact exists in the database.
+                            // First, check to see that the contact exists in the database.
+                            if (!phoneNumberConsidered(phoneNumber)) {
                                 new MySQLMethods().handleContact(contactName, phoneNumber);
                             }
 
@@ -96,23 +94,33 @@ class CallsBackup {
                             preparedStatement.executeUpdate();
                             System.out.println(sql);
                         } catch (SQLException sqle) {
-                            JOptionPane.showMessageDialog(null, "SQL Exception: " + sqle);
+                            System.out.println("SQL Exception: " + sqle);
                         } catch (ClassNotFoundException cnfe) {
-                            JOptionPane.showMessageDialog(null, "ClassNotFoundException: " + cnfe);
+                            System.out.println("ClassNotFoundException: " + cnfe);
                         }
                     } catch (Exception ex) {
-                        JOptionPane.showMessageDialog(null, "Exception : " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
+                        System.out.println("Exception : " + ex);
                     } finally {
                         conn.close();
                     }
                 }
             }
-            JOptionPane.showMessageDialog(null, "Finished backing up phone calls.", "Success!", JOptionPane.INFORMATION_MESSAGE);
+            System.out.println("Finished backing up phone calls.");
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(null, " SQL Exception : " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
+            System.out.println(" SQL Exception : " + ex);
         } catch (IOException ex) {
-            JOptionPane.showMessageDialog(null, "IOException : " + ex, "ERROR", JOptionPane.ERROR_MESSAGE);
+            System.out.println("IOException : " + ex);
         }
+    }
+
+    public static boolean phoneNumberConsidered(String phoneNumber) {
+        for (int i = 0; i < phoneNumbers.size(); i++) {
+            if (phoneNumbers.get(i).equals(phoneNumber)) {
+                phoneNumbers.add(phoneNumber);
+                return true;
+            }
+        }
+        return false;
     }
 
     public static String fixForInsertion(String sql) {

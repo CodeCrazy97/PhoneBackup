@@ -12,10 +12,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.LinkedList;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import javax.swing.JTextArea;
 
 class MySQLMethods {
 
@@ -32,13 +28,13 @@ class MySQLMethods {
             try {
                 Runtime.getRuntime().exec("C:\\xampp\\mysql\\bin\\mysqld.exe", null, new File("C:\\xampp\\mysql\\bin"));
             } catch (IOException ex) {
-                JOptionPane.showMessageDialog(null, "Exception sleeping: " + ex);
+                System.out.println("Exception sleeping: " + ex);
             }
             try {
                 //Force the program to wait for mysql to start.
                 Thread.sleep(9500);
             } catch (InterruptedException ex) {
-                JOptionPane.showMessageDialog(null, "Exception sleeping: " + ex);
+                System.out.println("Exception sleeping: " + ex);
             }
         }
         try {
@@ -53,12 +49,12 @@ class MySQLMethods {
                 try {
                     Runtime.getRuntime().exec("cmd /c start \"\" \"" + createDB + "\"");
                 } catch (IOException ex1) {
-                    JOptionPane.showMessageDialog(null, "IOException: " + ex1);
+                    System.out.println("IOException: " + ex1);
                 }
                 try {
                     Thread.sleep(750);  // Wait a few seconds before trying to establish a connection to the database that was just created.
                 } catch (InterruptedException ex1) {
-                    JOptionPane.showMessageDialog(null, "Exception sleeping: " + ex1);
+                    System.out.println("Exception sleeping: " + ex1);
                 }
 
                 // Now try getting a connection to the database, since it should be created.
@@ -66,7 +62,7 @@ class MySQLMethods {
                     conn = DriverManager.getConnection(
                             "jdbc:mysql://localhost:3306/phone_backup", "root", "");
                 } catch (SQLException ex1) {
-                    JOptionPane.showMessageDialog(null, "Exception trying to get a connection to the database: " + ex1);
+                    System.out.println("Exception trying to get a connection to the database: " + ex1);
                 }
             }
         }
@@ -148,7 +144,7 @@ class MySQLMethods {
         try {
             conn.close();
         } catch (SQLException ex) {
-            JOptionPane.showMessageDialog(null, "Exception trying to close the connection: " + ex.getMessage());;
+            System.out.println("Exception trying to close the connection: " + ex.getMessage());;
         }
     }
 
@@ -229,16 +225,25 @@ class MySQLMethods {
                     preparedStatement.executeUpdate();
                     System.out.println(sql);
                 } catch (SQLException sqle) {
-                    JOptionPane.showMessageDialog(null, "SQL Exception: " + sqle);
+                    System.out.println("SQL Exception: " + sqle);
                 } catch (ClassNotFoundException cnfe) {
-                    JOptionPane.showMessageDialog(null, "ClassNotFoundException: " + cnfe);
+                    System.out.println("ClassNotFoundException: " + cnfe);
                 }
             }
             st.close();
             closeConnection(conn);
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, e.getMessage());
+            System.out.println(e.getMessage());
             closeConnection(conn);
         }
+    }
+    
+    public static boolean phoneNumberAlreadyHandled(String phoneNumber, LinkedList<String> phoneNumbers) {
+        for (int i = 0; i < phoneNumbers.size(); i++) {
+            if (phoneNumbers.get(i).equals(phoneNumber)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
