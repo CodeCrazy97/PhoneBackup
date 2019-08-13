@@ -14,15 +14,15 @@ import javax.swing.JTextArea;
 
 class TextMessagesBackup {
 
+    //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
+    //having to confirm more than once whether or not to allow the program to create a new contact. Without the
+    //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
+    //to the database (this would happen if more than one message was sent/received from the same contact).
+    public static LinkedList<String> phoneNumbers = new LinkedList<>();
+
     public static void main(String[] args) throws IOException, SQLException {
 
-        //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
-        //having to confirm more than once whether or not to allow the program to create a new contact. Without the
-        //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
-        //to the database (this would happen if more than one message was sent/received from the same contact).
-        LinkedList<String> phoneNumbers = new LinkedList<>();
         //create the connection to the database
-
         Connection conn = new MySQLMethods().getConnection();
         if (conn == null) {
             JOptionPane.showMessageDialog(null, "Unable to connect to the database. Please check the connection. Try manually starting MySQL server.");
