@@ -59,6 +59,8 @@ class TextMessagesBackup {
                     JOptionPane.showMessageDialog(null, "Getting ready to backup text messages. Click OK to continue. This may take a few minutes.", "Backing Up Text Messages", JOptionPane.INFORMATION_MESSAGE);
 
                     while ((currLine = br.readLine()) != null) {
+                        System.out.println(phoneNumbers.size());
+                        System.out.println("currLine: " + currLine);
                         if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
 //messageQueue is the actual text of the currently viewed message. The text is between  body= and toa=" in the line.
                             String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
@@ -86,8 +88,10 @@ class TextMessagesBackup {
 /////////////Check to see if the contact already exists in the database.//////////
 /////////////If not, then create new contact only if user wants to.///////////////
 //////////////////////////////////////////////////////////////////////////////////
-                            if (!phoneNumbers.contains(contactName)) {  // If the phone number was not already considered, we may have to place it in the database.
+                            if (!phoneNumberWasLookedAt(phoneNumber)) {  // If the phone number was not already considered, we may have to place it in the database.
+                                System.out.println("Here...");
                                 new MySQLMethods().handleContact(contactName, phoneNumber);
+                                phoneNumbers.add(phoneNumber);
                             }
 /////////////////////////////////////////////////////////////////////////////////////////////
 ////////Finished inserting new contact (if applicable).//////////////////////////////////////
@@ -168,9 +172,10 @@ class TextMessagesBackup {
                                 }
 
                                 // If the phone number was not already considered during this run of the program, then will need to see if it is in the db.
-                                if (!phoneNumbers.contains(mmsContactName)) {
+                                if (!phoneNumberWasLookedAt(mmsPhoneNumber)) {
                                     // Check to see that the sender is already in the db.
                                     new MySQLMethods().handleContact(mmsContactName, mmsPhoneNumber);
+                                    phoneNumbers.add(mmsPhoneNumber);
                                 }
                             }
                             if (currLine.contains("ct=\"text/plain\"")) {  // Is a line with text. Indicate that this text message has a picture.
@@ -318,6 +323,16 @@ class TextMessagesBackup {
             new MySQLMethods().closeConnection(conn);
         }
         return exists;
+    }
+
+    public static boolean phoneNumberWasLookedAt(String contactName) {
+        for (int i = 0; i < phoneNumbers.size(); i++) {
+            System.out.println("Does " + phoneNumbers.get(i) + " equal " + contactName);
+            if (phoneNumbers.get(i).equals(contactName)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static String getContactName(String phoneNumber) {
