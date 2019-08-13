@@ -15,7 +15,7 @@ class CallsBackup {
     //having to confirm more than once whether or not to allow the program to create a new contact. Without the
     //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
     //to the database (this would happen if more than one message was sent/received from the same contact).
-    public static LinkedList< String> phoneNumbers = new LinkedList<>();
+    public static LinkedList<String> phoneNumbers = new LinkedList<>();
 
     public static void main(String[] args) throws IOException, SQLException {
         // Get the path, replacing common invalid characters such as quotes.
@@ -85,8 +85,10 @@ class CallsBackup {
                         try {  // now try inserting the call into the database
                             Class.forName("com.mysql.jdbc.Driver");
 
-                            // First, check to see that the contact exists in the database.
-                            new MySQLMethods().handleContact(contactName, phoneNumber, phoneNumbers);
+                            if (!phoneNumbers.contains(contactName)) {
+                                // First, check to see that the contact exists in the database.
+                                new MySQLMethods().handleContact(contactName, phoneNumber);
+                            }
 
                             String sql = "INSERT INTO phone_calls (contact_id, call_timestamp, duration, incoming) VALUES ((SELECT id FROM contacts WHERE name = '" + contactName + "'), '" + new MySQLMethods().createSQLTimestamp(callTimestamp) + "', " + duration + ", " + incoming + "); ";
 

@@ -14,14 +14,15 @@ import javax.swing.JTextArea;
 
 class TextMessagesBackup {
 
-    //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
-    //having to confirm more than once whether or not to allow the program to create a new contact. Without the
-    //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
-    //to the database (this would happen if more than one message was sent/received from the same contact).
-    public static LinkedList<String> phoneNumbers = new LinkedList<>();
-    //create the connection to the database
-
     public static void main(String[] args) throws IOException, SQLException {
+
+        //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
+        //having to confirm more than once whether or not to allow the program to create a new contact. Without the
+        //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
+        //to the database (this would happen if more than one message was sent/received from the same contact).
+        LinkedList<String> phoneNumbers = new LinkedList<>();
+        //create the connection to the database
+
         Connection conn = new MySQLMethods().getConnection();
         if (conn == null) {
             JOptionPane.showMessageDialog(null, "Unable to connect to the database. Please check the connection. Try manually starting MySQL server.");
@@ -85,7 +86,9 @@ class TextMessagesBackup {
 /////////////Check to see if the contact already exists in the database.//////////
 /////////////If not, then create new contact only if user wants to.///////////////
 //////////////////////////////////////////////////////////////////////////////////
-                            new MySQLMethods().handleContact(contactName, phoneNumber, phoneNumbers);
+                            if (!phoneNumbers.contains(contactName)) {  // If the phone number was not already considered, we may have to place it in the database.
+                                new MySQLMethods().handleContact(contactName, phoneNumber);
+                            }
 /////////////////////////////////////////////////////////////////////////////////////////////
 ////////Finished inserting new contact (if applicable).//////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -164,8 +167,11 @@ class TextMessagesBackup {
                                     mmsContactName = groupMessagePhoneNumber;
                                 }
 
-                                // Check to see that the sender is already in the db.
-                                new MySQLMethods().handleContact(mmsContactName, mmsPhoneNumber, phoneNumbers);
+                                // If the phone number was not already considered during this run of the program, then will need to see if it is in the db.
+                                if (!phoneNumbers.contains(mmsContactName)) {
+                                    // Check to see that the sender is already in the db.
+                                    new MySQLMethods().handleContact(mmsContactName, mmsPhoneNumber);
+                                }
                             }
                             if (currLine.contains("ct=\"text/plain\"")) {  // Is a line with text. Indicate that this text message has a picture.
                                 mmsContainsText = true;

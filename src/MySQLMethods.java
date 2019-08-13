@@ -45,7 +45,6 @@ class MySQLMethods {
             conn = DriverManager.getConnection(
                     "jdbc:mysql://localhost:3306/phone_backup", "root", "");
         } catch (Exception ex) {
-
             // If the database does not exist, then run the sql script that creates it.
             String basePath = new File("").getAbsolutePath();
             if (ex.getMessage().equals("Unknown database 'phone_backup'")) {  // Database was not created. Run the script that creates it.
@@ -190,59 +189,56 @@ class MySQLMethods {
         return found;
     }
 
-    public static void handleContact(String contactName, String phoneNumber, LinkedList<String> phoneNumbers) {
+    public static void handleContact(String contactName, String phoneNumber) {
         boolean addContact = false;
         Connection conn = getConnection();
-        if (!phoneNumbers.contains(phoneNumber)) {  //If this phone number has not been viewed before...
-            try {
-                // create our mysql database connection
-                String myDriver = "org.gjt.mm.mysql.Driver";
-                Class.forName(myDriver);
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
 
-                String query = "SELECT COUNT(*) FROM contacts WHERE name = '" + contactName + "' OR name = '" + phoneNumber + "';";
+            String query = "SELECT COUNT(*) FROM contacts WHERE name = '" + contactName + "' OR name = '" + phoneNumber + "';";
 
-                // create the java statement
-                Statement st = conn.createStatement();
+            // create the java statement
+            Statement st = conn.createStatement();
 
-                // execute the query, and get a java resultset
-                ResultSet rs = st.executeQuery(query);
+            // execute the query, and get a java resultset
+            ResultSet rs = st.executeQuery(query);
 
-                // iterate through the java resultset
-                while (rs.next()) {
-                    if (rs.getString(1).equals("0")) {  // The contact does not exist in the database (zero results were returned from the query). 
-                        addContact = true;
-                    }
+            // iterate through the java resultset
+            while (rs.next()) {
+                if (rs.getString(1).equals("0")) {  // The contact does not exist in the database (zero results were returned from the query). 
+                    addContact = true;
                 }
-
-                rs.close();
-                if (addContact) {  //User wants to add contact to db or user always wants to add a new contact to the db.
-                    try {
-                        Class.forName("com.mysql.jdbc.Driver");
-
-                        String sql = "";
-                        if (contactName.equals("(Unknown)")) {
-                            // If this contact does not have a name, just use the phone number as its "name".
-                            sql = "INSERT INTO contacts (name, phone_number) VALUES ('" + phoneNumber + "', '" + phoneNumber + "'); ";
-                        } else {
-                            sql = "INSERT INTO contacts (name, phone_number) VALUES ('" + contactName + "', '" + phoneNumber + "'); ";
-                        }
-
-                        PreparedStatement preparedStatement = conn.prepareStatement(sql);
-                        preparedStatement.executeUpdate();
-                        System.out.println(sql);
-                    } catch (SQLException sqle) {
-                        JOptionPane.showMessageDialog(null, "SQL Exception: " + sqle);
-                    } catch (ClassNotFoundException cnfe) {
-                        JOptionPane.showMessageDialog(null, "ClassNotFoundException: " + cnfe);
-                    }
-                }
-                st.close();
-                closeConnection(conn);
-            } catch (Exception e) {
-                JOptionPane.showMessageDialog(null, e.getMessage());
-                closeConnection(conn);
             }
+
+            rs.close();
+            if (addContact) {  //User wants to add contact to db or user always wants to add a new contact to the db.
+                try {
+                    Class.forName("com.mysql.jdbc.Driver");
+
+                    String sql = "";
+                    if (contactName.equals("(Unknown)")) {
+                        // If this contact does not have a name, just use the phone number as its "name".
+                        sql = "INSERT INTO contacts (name, phone_number) VALUES ('" + phoneNumber + "', '" + phoneNumber + "'); ";
+                    } else {
+                        sql = "INSERT INTO contacts (name, phone_number) VALUES ('" + contactName + "', '" + phoneNumber + "'); ";
+                    }
+
+                    PreparedStatement preparedStatement = conn.prepareStatement(sql);
+                    preparedStatement.executeUpdate();
+                    System.out.println(sql);
+                } catch (SQLException sqle) {
+                    JOptionPane.showMessageDialog(null, "SQL Exception: " + sqle);
+                } catch (ClassNotFoundException cnfe) {
+                    JOptionPane.showMessageDialog(null, "ClassNotFoundException: " + cnfe);
+                }
+            }
+            st.close();
+            closeConnection(conn);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(null, e.getMessage());
+            closeConnection(conn);
         }
     }
-
 }
