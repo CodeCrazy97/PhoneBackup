@@ -21,7 +21,7 @@ class TextMessagesBackup {
         //create the connection to the database
         Connection conn = new MySQLMethods().getConnection();
         if (conn == null) {
-            System.out.println("Unable to connect to the database. Please check the connection. Try manually starting MySQL server.");
+            System.out.println("\nUnable to connect to the database. \nPlease check the connection. \nTry manually starting MySQL server. \nYou may need to delete the aria_log.* file, located in C:\\xampp\\mysql\\data");
             return;
         }
         // Get the path, replacing common invalid characters such as quotes.

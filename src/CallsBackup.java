@@ -1,6 +1,7 @@
-package com.company;
+
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
@@ -8,36 +9,40 @@ import java.util.LinkedList;
 
 class CallsBackup {
 
+    //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
+    //having to confirm more than once whether or not to allow the program to create a new contact. Without the
+    //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
+    //to the database (this would happen if more than one message was sent/received from the same contact).
+    public static LinkedList<String> phoneNumbers = new LinkedList<>();
+
     public static void main(String[] args) throws IOException, SQLException {
+        // Get the path, replacing common invalid characters such as quotes.
+        String path = args[0].replace("\"", "");
 
         //Read through the new text messages.
-        File file = new File("C:\\Users\\A521646\\OneDrive - Valvoline\\Documents\\Projects\\SMS\\calls-20190715161054.xml");
+        File file = new File(path);
         if (!file.exists()) { //we might not want to add text to a file that already existed
             System.out.println("File does not exist.");
-            System.exit(0);
+            throw new FileNotFoundException("Path to phone calls XML file does not exist.");
         }
-
-        //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
-        //having to confirm more than once whether or not to allow the program to create a new contact. Without the
-        //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
-        //to the database (this would happen if more than one message was sent/received from the same contact).
-        LinkedList< String> phoneNumbers = new LinkedList<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
 
             String currLine;  //The line in the file currently being viewed by the program. The xml file is
             //broken up by lines; so, one line represents a single text message.
 
-            System.out.println("About to start backing up your phone calls.");
-            System.out.println("This program will NOT remove any phone calls already in the database.");
-            System.out.println("This may take a few minutes.\n");
+            System.out.println("Getting ready to backup phone calls. Click OK to continue. This may take a few minutes.");
 
             while ((currLine = br.readLine()) != null) {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
                     //create the connection to the database
-                    Connection conn = new MySQLConnection().getConnection();
-
+                    Connection conn = new MySQLMethods().getConnection();
+                    if (conn == null) {
+                        System.out.println("\nUnable to connect to the database. \nPlease check the connection. \nTry manually starting MySQL server. \nYou may need to delete the aria_log.* file, located in C:\\xampp\\mysql\\data");
+                        return;
+                    }
                     try {
+                        String phoneNumber = currLine.substring(currLine.indexOf("call number=\"") + 13, currLine.indexOf("\" duration"));
                         String duration = currLine.substring(currLine.indexOf("duration=\"") + 10, currLine.indexOf("\" date="));
                         String callTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                         String contactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.indexOf("\" />"));
@@ -52,8 +57,8 @@ class CallsBackup {
                         Class.forName(myDriver);
 
                         try {  // check that the call does not already xist in the database
-                            String query = "SELECT COUNT(*) FROM phone_calls WHERE call_timestamp = '" + new MySQLConnection().createSQLTimestamp(callTimestamp) + "'; ";
-                            System.out.println("query: " + query);
+                            String query = "SELECT COUNT(*) FROM phone_calls WHERE call_timestamp = '" + new MySQLMethods().createSQLTimestamp(callTimestamp) + "'; ";
+
                             // create the java statement
                             Statement st = conn.createStatement();
 
@@ -78,12 +83,16 @@ class CallsBackup {
                         try {  // now try inserting the call into the database
                             Class.forName("com.mysql.jdbc.Driver");
 
-                            String sql = "INSERT INTO phone_calls (contact_name, call_timestamp, duration, incoming) VALUES ('" + contactName + "', '" + new MySQLConnection().createSQLTimestamp(callTimestamp) + "', " + duration + ", " + incoming + "); ";
+                            // First, check to see that the contact exists in the database.
+                            if (!phoneNumberConsidered(phoneNumber)) {
+                                new MySQLMethods().handleContact(contactName, phoneNumber);
+                            }
+
+                            String sql = "INSERT INTO phone_calls (contact_id, call_timestamp, duration, incoming) VALUES ((SELECT id FROM contacts WHERE name = '" + contactName + "'), '" + new MySQLMethods().createSQLTimestamp(callTimestamp) + "', " + duration + ", " + incoming + "); ";
 
                             PreparedStatement preparedStatement = conn.prepareStatement(sql);
                             preparedStatement.executeUpdate();
-
-                            System.out.println("SQL insert statement: " + sql);
+                            System.out.println(sql);
                         } catch (SQLException sqle) {
                             System.out.println("SQL Exception: " + sqle);
                         } catch (ClassNotFoundException cnfe) {
@@ -96,11 +105,24 @@ class CallsBackup {
                     }
                 }
             }
+            System.out.println("Finished backing up phone calls.");
         } catch (SQLException ex) {
             System.out.println(" SQL Exception : " + ex);
         } catch (IOException ex) {
             System.out.println("IOException : " + ex);
         }
+    }
+
+    public static boolean phoneNumberConsidered(String phoneNumber) {
+        for (int i = 0; i < phoneNumbers.size(); i++) {
+            if (phoneNumbers.get(i).equals(phoneNumber)) {
+                return true;
+            }
+        }
+
+        // We have now considered this phone number. Add it to the list.
+        phoneNumbers.add(phoneNumber);
+        return false;
     }
 
     public static String fixForInsertion(String sql) {
