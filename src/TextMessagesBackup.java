@@ -17,7 +17,6 @@ class TextMessagesBackup {
     //to the database (this would happen if more than one message was sent/received from the same contact).
     public static LinkedList<String> phoneNumbers = new LinkedList<>();
 
-    
     public static void main(String[] args) throws IOException, SQLException {
         //create the connection to the database
         Connection conn = new MySQLMethods().getConnection();
@@ -55,7 +54,6 @@ class TextMessagesBackup {
                     System.out.println("Getting ready to backup text messages. This may take a few minutes.");
 
                     while ((currLine = br.readLine()) != null) {
-                        System.out.println("here?");
                         if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
 //messageQueue is the actual text of the currently viewed message. The text is between  body= and toa=" in the line.
                             String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
@@ -262,10 +260,12 @@ class TextMessagesBackup {
     public static boolean phoneNumberConsidered(String phoneNumber) {
         for (int i = 0; i < phoneNumbers.size(); i++) {
             if (phoneNumbers.get(i).equals(phoneNumber)) {
-                phoneNumbers.add(phoneNumber);
                 return true;
             }
         }
+        
+        // We have now considered this phone number. Add it to the list.
+        phoneNumbers.add(phoneNumber); 
         return false;
     }
 

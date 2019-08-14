@@ -116,10 +116,12 @@ class CallsBackup {
     public static boolean phoneNumberConsidered(String phoneNumber) {
         for (int i = 0; i < phoneNumbers.size(); i++) {
             if (phoneNumbers.get(i).equals(phoneNumber)) {
-                phoneNumbers.add(phoneNumber);
                 return true;
             }
         }
+
+        // We have now considered this phone number. Add it to the list.
+        phoneNumbers.add(phoneNumber);
         return false;
     }
 
