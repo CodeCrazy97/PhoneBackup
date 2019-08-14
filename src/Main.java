@@ -13,18 +13,18 @@ public class Main {
         System.out.println("E. Exit this program.");
         System.out.println("Enter your response below.");
         Scanner input = new Scanner(System.in);
-        String response = input.next();
+        String response = input.nextLine();
         while (response.charAt(0) != '1' && response.charAt(0) != '2' && response.charAt(0) != '3' && response.charAt(0) != 'E' && response.charAt(0) != 'e') {
             System.out.println("Invalid! Try again.");
             System.out.println("Enter your response below.");
-            response = input.next();
+            response = input.nextLine();
         }
 
         if (response.charAt(0) == '1') {
             TextMessagesBackup backup = new TextMessagesBackup();
             System.out.println("Enter the path to the text message XML file: ");
-            String textMessageXMLFile = input.next();
-            textMessageXMLFile = textMessageXMLFile.replace("\"", "");
+            String textMessageXMLFile = input.nextLine();
+            textMessageXMLFile = new MySQLMethods().fixFilePath(textMessageXMLFile);
             try {
                 String[] args1 = {textMessageXMLFile};
                 backup.main(args1);
@@ -34,8 +34,8 @@ public class Main {
         } else if (response.charAt(0) == '2') {
             CallsBackup backup = new CallsBackup();
             System.out.println("Enter the path to the phone calls XML file: ");
-            String phoneCallsXMLFile = input.next();
-            phoneCallsXMLFile = phoneCallsXMLFile.replace("\"", "");
+            String phoneCallsXMLFile = input.nextLine();
+            phoneCallsXMLFile = new MySQLMethods().fixFilePath(phoneCallsXMLFile);
             try {
                 String[] args1 = {phoneCallsXMLFile};
                 backup.main(args1);
@@ -45,8 +45,8 @@ public class Main {
         } else if (response.charAt(0) == '3') {
             TextMessagesBackup backup = new TextMessagesBackup();
             System.out.println("Enter the path to the text message XML file: ");
-            String textMessageXMLFile = input.next();
-            textMessageXMLFile = textMessageXMLFile.replace("\"", "");
+            String textMessageXMLFile = input.nextLine();
+            textMessageXMLFile = new MySQLMethods().fixFilePath(textMessageXMLFile);
             try {
                 String[] args1 = {textMessageXMLFile};
                 backup.main(args1);
@@ -61,8 +61,8 @@ public class Main {
             // Set the list of phone numbers to what was already considered with the text messages (do this solely for efficiency).
             backup2.phoneNumbers = backup.phoneNumbers;
             System.out.println("Enter the path to the phone calls XML file: ");
-            String phoneCallsXMLFile = input.next();
-            phoneCallsXMLFile = phoneCallsXMLFile.replace("\"", "");
+            String phoneCallsXMLFile = input.nextLine();
+            phoneCallsXMLFile = new MySQLMethods().fixFilePath(phoneCallsXMLFile);
             try {
                 String[] args1 = {phoneCallsXMLFile};
                 backup.main(args1);

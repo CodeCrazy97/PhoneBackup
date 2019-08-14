@@ -185,6 +185,12 @@ class MySQLMethods {
         return found;
     }
 
+    public static String fixFilePath(String path) {
+        path = path.replace("\"", "");
+        path = path.replace("\\", "\\\\");
+        return path;
+    }
+    
     public static void handleContact(String contactName, String phoneNumber) {
         boolean addContact = false;
         Connection conn = getConnection();

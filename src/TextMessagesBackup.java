@@ -55,6 +55,7 @@ class TextMessagesBackup {
                     System.out.println("Getting ready to backup text messages. This may take a few minutes.");
 
                     while ((currLine = br.readLine()) != null) {
+                        System.out.println("here?");
                         if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
 //messageQueue is the actual text of the currently viewed message. The text is between  body= and toa=" in the line.
                             String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
