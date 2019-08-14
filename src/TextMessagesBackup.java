@@ -263,9 +263,9 @@ class TextMessagesBackup {
                 return true;
             }
         }
-        
+
         // We have now considered this phone number. Add it to the list.
-        phoneNumbers.add(phoneNumber); 
+        phoneNumbers.add(phoneNumber);
         return false;
     }
 

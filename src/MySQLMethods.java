@@ -37,19 +37,19 @@ class MySQLMethods {
                 System.out.println("Exception sleeping: " + ex);
             }
         }
-		
+
         try {
             conn = DriverManager.getConnection(
                     "jdbc:mysql://localhost:3306/phone_backup", "root", "");
         } catch (Exception ex) {
             // If the database does not exist, then run the sql script that creates it.
             String basePath = new File("").getAbsolutePath();
-			
+
             if (ex.getMessage().equals("No suitable driver found for jdbc:mysql://localhost:3306/phone_backup")) {  // Database was not created. Run the script that creates it.
-				
-				basePath = basePath.substring(0, basePath.lastIndexOf("\\"));
-				String createDB = basePath.replace("\\", "/") + "/create_database.bat";
-			    try {
+
+                basePath = basePath.substring(0, basePath.lastIndexOf("\\"));
+                String createDB = basePath.replace("\\", "/") + "/create_database.bat";
+                try {
                     Runtime.getRuntime().exec("cmd /c start \"\" \"" + createDB + "\"");
                 } catch (IOException ex1) {
                     System.out.println("IOException: " + ex1);
@@ -193,7 +193,7 @@ class MySQLMethods {
         path = path.replace("\\", "\\\\");
         return path;
     }
-    
+
     public static void handleContact(String contactName, String phoneNumber) {
         boolean addContact = false;
         Connection conn = getConnection();
@@ -246,7 +246,7 @@ class MySQLMethods {
             closeConnection(conn);
         }
     }
-    
+
     public static boolean phoneNumberAlreadyHandled(String phoneNumber, LinkedList<String> phoneNumbers) {
         for (int i = 0; i < phoneNumbers.size(); i++) {
             if (phoneNumbers.get(i).equals(phoneNumber)) {
