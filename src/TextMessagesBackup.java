@@ -25,7 +25,8 @@ class TextMessagesBackup {
             return;
         }
         // Get the path, replacing common invalid characters such as quotes.
-        String path = args[0].replace("\"", "");
+        String path = new MySQLMethods().fixFilePath(args[0]);
+        System.out.println("Path to xml: " + path);
 
         // Get a connection to the file that contains the text messages.
         File file = new File(path);  // Full file path to the text messages XML file.

@@ -17,7 +17,7 @@ class CallsBackup {
 
     public static void main(String[] args) throws IOException, SQLException {
         // Get the path, replacing common invalid characters such as quotes.
-        String path = args[0].replace("\"", "");
+        String path = new MySQLMethods().fixFilePath(args[0]);
 
         //Read through the new text messages.
         File file = new File(path);
