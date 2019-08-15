@@ -56,8 +56,8 @@ class MySQLMethods {
                     System.out.println("IOException: " + ex1);
                 }
                 try {
-                    System.out.println("sleeping 750 ms...");
-                    Thread.sleep(750);  // Wait a few seconds before trying to establish a connection to the database that was just created.
+                    System.out.println("sleeping 3000 ms...");
+                    Thread.sleep(3000);  // Wait a few seconds before trying to establish a connection to the database that was just created.
                     System.out.println("done sleeping");
                 } catch (InterruptedException ex1) {
                     System.out.println("Exception sleeping: " + ex1);
