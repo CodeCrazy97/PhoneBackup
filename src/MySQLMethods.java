@@ -39,16 +39,19 @@ class MySQLMethods {
         }
 
         try {
+            Class.forName("com.mysql.jdbc.Driver");
             conn = DriverManager.getConnection(
                     "jdbc:mysql://localhost:3306/phone_backup", "root", "");
         } catch (Exception ex) {
             // If the database does not exist, then run the sql script that creates it.
             String basePath = new File("").getAbsolutePath();
-
-            if (ex.getMessage().equals("No suitable driver found for jdbc:mysql://localhost:3306/phone_backup")) {  // Database was not created. Run the script that creates it.
+            if (ex.getMessage().equals("Unknown database 'phone_backup'")) {  // Database was not created. Run the script that creates it.
 
                 basePath = basePath.substring(0, basePath.lastIndexOf("\\"));
                 String createDB = basePath.replace("\\", "/") + "/create_database.bat";
+                System.out.println("path to create db: " + createDB);
+
+                System.exit(0);
                 try {
                     Runtime.getRuntime().exec("cmd /c start \"\" \"" + createDB + "\"");
                 } catch (IOException ex1) {
