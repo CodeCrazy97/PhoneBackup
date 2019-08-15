@@ -47,6 +47,7 @@ class MySQLMethods {
             String basePath = new File("").getAbsolutePath();
             if (ex.getMessage().equals("Unknown database 'phone_backup'")) {  // Database was not created. Run the script that creates it.
 
+                basePath = basePath.substring(0, basePath.lastIndexOf("\\"));  // Go back a directory.
                 String createDB = basePath.replace("\\", "/") + "/create_database.bat";
 
                 try {
