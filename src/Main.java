@@ -11,6 +11,7 @@ public class Main {
         System.out.println("2. Backup phone calls.");
         System.out.println("3. Backup phone calls and text messages.");
         System.out.println("E. Exit this program.");
+        System.out.println();
         System.out.println("Enter your response below.");
         Scanner input = new Scanner(System.in);
         String response = input.nextLine();
@@ -19,10 +20,10 @@ public class Main {
             System.out.println("Enter your response below.");
             response = input.nextLine();
         }
-
+        
         if (response.charAt(0) == '1') {
             TextMessagesBackup backup = new TextMessagesBackup();
-            System.out.println("Enter the path to the text message XML file: ");
+            System.out.println("Enter the path to the text messages XML file: ");
             String textMessageXMLFile = input.nextLine();
             textMessageXMLFile = new MySQLMethods().fixFilePath(textMessageXMLFile);
             try {
@@ -44,7 +45,7 @@ public class Main {
             }
         } else if (response.charAt(0) == '3') {
             TextMessagesBackup backup = new TextMessagesBackup();
-            System.out.println("Enter the path to the text message XML file: ");
+            System.out.println("Enter the path to the text messages XML file: ");
             String textMessageXMLFile = input.nextLine();
             textMessageXMLFile = new MySQLMethods().fixFilePath(textMessageXMLFile);
             try {
