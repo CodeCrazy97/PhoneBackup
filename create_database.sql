@@ -19,7 +19,7 @@ USE `phone_backup`;
 -- Dumping structure for table phone_backup.contacts
 CREATE TABLE IF NOT EXISTS `contacts` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(30) NOT NULL,
+  `person_name` varchar(30) NOT NULL,
   `phone_number` bigint(20) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=232 DEFAULT CHARSET=latin1;

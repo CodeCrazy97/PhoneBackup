@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using MySql.Data.MySqlClient;
 using System.Drawing;
-using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 
 namespace SMSGui
@@ -16,7 +11,7 @@ namespace SMSGui
         public Form1()
         {
             InitializeComponent();
-
+           
             //Setup the server connection.            
             connStr = new SqlConnection().connection;
 
@@ -39,7 +34,7 @@ namespace SMSGui
 
 
             //Create the SQL statement that gets the number of the last submitted refill request.
-            string sql = "SELECT DISTINCT c.name FROM text_messages m JOIN(SELECT * FROM contacts) c ON c.id = m.contact_id ORDER BY c.name; ";
+            string sql = "SELECT DISTINCT c.person_name FROM text_messages m JOIN(SELECT * FROM contacts) c ON c.id = m.contact_id ORDER BY c.person_name; ";
 
             connection = new MySqlConnection(connStr);    //create the new connection using the parameters of connStr
             try
@@ -50,6 +45,9 @@ namespace SMSGui
 
                 if (!reader.HasRows)
                 {
+                    contactsComboBox.Visible = false;
+                    label1.Visible = false;
+                    messagesRichTextBox.Text = "No messages or contacts in the database.";
                     Console.WriteLine("No contacts and/or messages in the database.");
                     connection.Close();
                 }
@@ -81,7 +79,7 @@ namespace SMSGui
 
 
             //Create the SQL statement that gets the number of the last submitted refill request.
-            string sql = "SELECT * FROM text_messages m join (SELECT id FROM contacts WHERE name = '" + contactName + "') c ON c.id = m.contact_id ORDER BY m.sent_timestamp ASC;";
+            string sql = "SELECT * FROM text_messages m join (SELECT id FROM contacts WHERE person_name = '" + contactName + "') c ON c.id = m.contact_id ORDER BY m.sent_timestamp ASC;";
 
             connection = new MySqlConnection(connStr);    //create the new connection using the parameters of connStr
             try
@@ -164,6 +162,7 @@ namespace SMSGui
         private void Form1_Load(object sender, EventArgs e)
         {
             this.ActiveControl = messagesRichTextBox;  // Set the message box as the component that has control (this way, you can scroll without having to click on it).
+            this.Text = "Text Messages";
         }
     }
 }

@@ -1,6 +1,5 @@
 
 import java.io.BufferedReader;
-import javax.swing.JOptionPane;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -12,29 +11,37 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.LinkedList;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 class MySQLMethods {
+
+    static Connection conn = null;
+    static Statement st = null;
+    static ResultSet rs = null;
 
     public MySQLMethods() {
 
     }
 
     public static Connection getConnection() {
-        // Try getting a connection to the database. 
-        Connection conn = null;
-
+        // First, check that the MySQL server is running.
         boolean result = isRunning("mysqld.exe");
-        if (!result) {
+        if (!result) {  // MySQL server is not running - turn it on.
+            System.out.println("MySQL is not turned on. Hang on while the program turns it on...");
             try {
-                Runtime.getRuntime().exec("C:\\xampp\\mysql\\bin\\mysqld.exe", null, new File("C:\\xampp\\mysql\\bin"));
+                Runtime.getRuntime().exec("C:\\xampp\\mysql\\bin\\mysqld.exe");  // Generally, this is where mysql is located.
             } catch (IOException ex) {
-                System.out.println("Exception sleeping: " + ex);
+                System.out.println("Exception trying to start mysql: " + ex);
             }
             try {
+                System.out.println("Wait while we try to establish a connection to the database...");
+                System.out.println();
+                System.out.println();
                 //Force the program to wait for mysql to start.
                 Thread.sleep(9500);
             } catch (InterruptedException ex) {
-                System.out.println("Exception sleeping: " + ex);
+                System.out.println("Exception waiting on mysql to turn on: " + ex);
             }
         }
 
@@ -46,20 +53,21 @@ class MySQLMethods {
             // If the database does not exist, then run the sql script that creates it.
             String basePath = new File("").getAbsolutePath();
             if (ex.getMessage().equals("Unknown database 'phone_backup'")) {  // Database was not created. Run the script that creates it.
-
+                System.out.println("The phone backup database has not been created.");
+                System.out.println("The program will attempt to create the database.");
                 basePath = basePath.substring(0, basePath.lastIndexOf("\\"));  // Go back a directory.
                 String createDB = basePath.replace("\\", "/") + "/create_database.bat";
 
                 try {
                     Runtime.getRuntime().exec("cmd /c start \"\" \"" + createDB + "\"");
                 } catch (IOException ex1) {
-                    System.out.println("IOException: " + ex1);
+                    System.out.println("IOException trying to create the database: " + ex1);
                 }
                 try {
-                    System.out.println("Wait while we try to establish a connection...");
+                    System.out.println("Wait while we try to establish a connection to the database...");
                     Thread.sleep(3000);  // Wait a few seconds before trying to establish a connection to the database that was just created.
                 } catch (InterruptedException ex1) {
-                    System.out.println("Exception sleeping: " + ex1);
+                    System.out.println("Exception waiting to establish a connection to the database after creating it: " + ex1);
                 }
                 // Now try getting a connection to the database, since it should be created.
                 try {
@@ -68,9 +76,148 @@ class MySQLMethods {
                 } catch (SQLException ex1) {
                     System.out.println("Exception trying to get a connection to the database: " + ex1);
                 }
+                System.out.println();
             }
         }
         return conn;
+    }
+
+    // Returns the number of phone calls, by type. If incoming = true, then the type 
+    // is a received phone call. If it is false, then it was a dialed phone call.
+    // Excludes phone calls that lasted 0 seconds.
+    public static int getPhoneCallsTotal(boolean incoming) {
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "";
+            if (incoming) {
+                query = "SELECT COUNT(*) FROM phone_calls WHERE incoming = 1 AND duration > 0;";
+            } else {
+                query = "SELECT COUNT(*) FROM phone_calls WHERE incoming = 0 AND duration > 0;";
+            }
+
+            // create the java statement
+            st = conn.createStatement();
+            // execute the query, and get a java resultset
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to get total number of dialed phone calls: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return -1;
+    }
+
+    public static int getTimeSpentOnPhone() {
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT SUM(duration) FROM phone_calls;";
+
+            // create the java statement
+            st = conn.createStatement();
+            // execute the query, and get a java resultset
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to get total time spent on the phone: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return -1;
+    }
+
+    // getLongestPhoneCall: Returns a String array with the following (sequentially stored) information:
+    // duration, date/time of phone call, and contact name
+    public static String[] getLongestPhoneCall() {
+        String[] longestPhoneCallInformation = {"", "", ""};
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT p.duration, DATE_FORMAT(p.call_timestamp, '%W %M %d, %Y'), c.person_name FROM phone_calls p JOIN (SELECT person_name, id FROM contacts) c ON c.id = p.contact_id ORDER BY p.duration DESC LIMIT 1;";
+
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
+            // iterate through the java resultset
+            while (rs.next()) {
+                longestPhoneCallInformation[0] = rs.getString(1);
+                longestPhoneCallInformation[1] = rs.getString(2);
+                longestPhoneCallInformation[2] = rs.getString(3);
+                return longestPhoneCallInformation;
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to get the earliest phone call: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return null;
+    }
+
+    public static void closeStatement(Statement st) {
+        try {
+            st.close();
+        } catch (SQLException ex) {
+            System.out.println("Exception trying to close SQL statement set: " + ex.getMessage());
+        }
+    }
+
+    public static void closeResultSet(ResultSet rs) {
+        try {
+            rs.close();
+        } catch (SQLException ex) {
+            System.out.println("Exception trying to close result set: " + ex.getMessage());
+        }
+    }
+
+    public static String getEarliestPhoneCall() {
+
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT DATE_FORMAT(call_timestamp, '%W %M %d, %Y') FROM phone_Calls ORDER BY call_timestamp ASC LIMIT 1;";
+
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getString(1);
+            }
+
+        } catch (Exception e) {
+            System.out.println("Exception trying to get the earliest phone call: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return null;
     }
 
     public static String createSQLTimestamp(String timestamp) throws Exception {
@@ -184,7 +331,7 @@ class MySQLMethods {
             input.close();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Exception trying to check if mysqld.exe is running: " + e.getMessage());
         }
         return found;
     }
@@ -197,19 +344,16 @@ class MySQLMethods {
 
     public static void handleContact(String contactName, String phoneNumber) {
         boolean addContact = false;
-        Connection conn = getConnection();
+        conn = getConnection();
         try {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT COUNT(*) FROM contacts WHERE name = '" + contactName + "' OR name = '" + phoneNumber + "';";
+            String query = "SELECT COUNT(*) FROM contacts WHERE person_name = '" + contactName + "' OR person_name = '" + phoneNumber + "';";
 
-            // create the java statement
-            Statement st = conn.createStatement();
-
-            // execute the query, and get a java resultset
-            ResultSet rs = st.executeQuery(query);
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
 
             // iterate through the java resultset
             while (rs.next()) {
@@ -226,26 +370,58 @@ class MySQLMethods {
                     String sql = "";
                     if (contactName.equals("(Unknown)")) {
                         // If this contact does not have a name, just use the phone number as its "name".
-                        sql = "INSERT INTO contacts (name, phone_number) VALUES ('" + phoneNumber + "', '" + phoneNumber + "'); ";
+                        sql = "INSERT INTO contacts (person_name, phone_number) VALUES ('" + phoneNumber + "', '" + phoneNumber + "'); ";
                     } else {
-                        sql = "INSERT INTO contacts (name, phone_number) VALUES ('" + contactName + "', '" + phoneNumber + "'); ";
+                        sql = "INSERT INTO contacts (person_name, phone_number) VALUES ('" + contactName + "', '" + phoneNumber + "'); ";
                     }
 
                     PreparedStatement preparedStatement = conn.prepareStatement(sql);
                     preparedStatement.executeUpdate();
                     System.out.println(sql);
+                    preparedStatement.close();
                 } catch (SQLException sqle) {
-                    System.out.println("SQL Exception: " + sqle);
+                    System.out.println("SQL Exception trying to insert a new contact into the database: " + sqle);
                 } catch (ClassNotFoundException cnfe) {
-                    System.out.println("ClassNotFoundException: " + cnfe);
+                    System.out.println("ClassNotFoundException trying to insert a new contact into the database: " + cnfe);
                 }
             }
-            st.close();
-            closeConnection(conn);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            System.out.println("Exception checking if a contact exists in the database: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
             closeConnection(conn);
         }
+    }
+
+    public static String getContactNameFromID(int id) {
+        conn = new MySQLMethods().getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT person_name FROM contacts WHERE id = " + id;
+
+            // create the java statement
+            st = conn.createStatement();
+            // execute the query, and get a java resultset
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getString(1);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to get a contact's name from his/her ID: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+
+        // No contact existed with that id. So, just return the id itself.
+        return "" + id;
     }
 
     public static boolean phoneNumberAlreadyHandled(String phoneNumber, LinkedList<String> phoneNumbers) {
