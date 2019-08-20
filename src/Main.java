@@ -1,13 +1,29 @@
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Main {
-
+    
     public static void main(String[] args) {
+
+        // Display when the phone calls were last backed up.
+        String lastBackupDatePhoneCalls = new MySQLMethods().getLastBackupDate("phone calls");
+        if (lastBackupDatePhoneCalls != null) {  // If there was a date of the last backup to begin with, then display it.
+            System.out.println("Date of last phone calls backup: " + lastBackupDatePhoneCalls);
+        }
+
+        // Display when the text messages were last backed up.
+        String lastBackupDateTextMessages = new MySQLMethods().getLastBackupDate("text messages");
+        if (lastBackupDateTextMessages != null) {  // If there was a date of the last backup to begin with, then display it.
+            System.out.println("Date of last text messages backup: " + lastBackupDateTextMessages);
+        }
+        
         String response = "";
         do {
             System.out.println("\nWhat would you like to do?");
@@ -22,7 +38,7 @@ public class Main {
             System.out.println("Enter your response below.");
             Scanner input = new Scanner(System.in);
             response = input.nextLine();
-
+            
             if (response.charAt(0) == '1') {
                 TextMessagesBackup backup = new TextMessagesBackup();
                 System.out.println("Enter the path to the text messages XML file: ");

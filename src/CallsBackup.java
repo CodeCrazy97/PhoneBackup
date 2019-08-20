@@ -3,15 +3,16 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.*;
 import java.util.LinkedList;
 
 class CallsBackup {
-    
+
     static Connection conn = null;
- static Statement st = null;
- static ResultSet rs = null;
+    static Statement st = null;
+    static ResultSet rs = null;
     //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
     //having to confirm more than once whether or not to allow the program to create a new contact. Without the
     //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
@@ -71,7 +72,7 @@ class CallsBackup {
                                     exists = true;
                                 }
                             }
-                            
+
                             if (exists) {  // don't insert a call into the database if it already exists
                                 continue;
                             }  // else, go on to insertion
@@ -108,6 +109,10 @@ class CallsBackup {
                 }
             }
             System.out.println("Finished backing up phone calls.");
+
+            // Try to update the timestamp for the phone calls backup.
+            new MySQLMethods().updateBackup("phone calls");
+            
         } catch (IOException ex) {
             System.out.println("IOException : " + ex);
         }

@@ -22,7 +22,24 @@ CREATE TABLE IF NOT EXISTS `contacts` (
   `person_name` varchar(30) NOT NULL,
   `phone_number` bigint(20) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=232 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=238 DEFAULT CHARSET=latin1;
+
+-- Data exporting was unselected.
+
+-- Dumping structure for table phone_backup.last_backup_timestamps
+CREATE TABLE IF NOT EXISTS `last_backup_timestamps` (
+  `backup_name` varchar(30) NOT NULL,
+  `backup_timestamp` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE current_timestamp(),
+  PRIMARY KEY (`backup_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+-- Dumping data for table phone_backup.last_backup_timestamps: ~0 rows (approximately)
+DELETE FROM `last_backup_timestamps`;
+/*!40000 ALTER TABLE `last_backup_timestamps` DISABLE KEYS */;
+INSERT INTO `last_backup_timestamps` (`backup_name`, `backup_timestamp`) VALUES
+	('phone calls', '0000-00-00 00:00:00'),
+	('text messages', '0000-00-00 00:00:00');
+/*!40000 ALTER TABLE `last_backup_timestamps` ENABLE KEYS */;
 
 -- Data exporting was unselected.
 
@@ -36,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `phone_calls` (
   PRIMARY KEY (`id`),
   KEY `phone_calls_fk2` (`contact_id`),
   CONSTRAINT `phone_calls_fk2` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1876 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=1891 DEFAULT CHARSET=latin1;
 
 -- Data exporting was unselected.
 
@@ -50,7 +67,7 @@ CREATE TABLE IF NOT EXISTS `text_messages` (
   PRIMARY KEY (`id`),
   KEY `text_messages_fk1` (`contact_id`),
   CONSTRAINT `text_messages_fk1` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=16241 DEFAULT CHARSET=latin1 MAX_ROWS=1000000;
+) ENGINE=InnoDB AUTO_INCREMENT=16288 DEFAULT CHARSET=latin1 MAX_ROWS=1000000;
 
 -- Data exporting was unselected.
 

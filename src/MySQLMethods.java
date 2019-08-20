@@ -424,6 +424,54 @@ class MySQLMethods {
         return "" + id;
     }
 
+    // Fetches the last backup timestamp for text messages or phone calls (type determines which one we're fetching the timestamp for)
+    public static String getLastBackupDate(String type) {
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT DATE_FORMAT(backup_timestamp, '%a %b %d, %Y at %r') FROM last_backup_timestamps WHERE backup_name = '" + type + "';";
+
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getString(1);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to get total number of dialed phone calls: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return null;
+    }
+
+    // updateBackup - updates the timestamp for when text messages or phone calls were backed up.
+    // type determines whether it is the timestamp for texts or calls that we're updating.
+    public static void updateBackup(String type) {
+        conn = getConnection();
+        try {
+            // create the java mysql update preparedstatement
+            String query = "UPDATE last_backup_timestamps SET backup_timestamp = NOW() WHERE backup_name = ?";
+            PreparedStatement preparedStmt = conn.prepareStatement(query);
+            preparedStmt.setString(1, type);
+
+            // execute the java preparedstatement
+            preparedStmt.executeUpdate();
+
+            conn.close();
+        } catch (Exception e) {
+            System.err.println("Exception trying to update the backup timestamp: " + e.getMessage());
+        } finally {
+            closeConnection(conn);
+        }
+    }
+
     public static boolean phoneNumberAlreadyHandled(String phoneNumber, LinkedList<String> phoneNumbers) {
         for (int i = 0; i < phoneNumbers.size(); i++) {
             if (phoneNumbers.get(i).equals(phoneNumber)) {

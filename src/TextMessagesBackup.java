@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.sql.*;
 import java.util.LinkedList;
@@ -252,6 +253,10 @@ class TextMessagesBackup {
                     }
                 }
                 System.out.println("Finished backing up text messages!");
+                
+                // Try to update the timestamp for the text messages backup.
+                new MySQLMethods().updateBackup("text messages");
+                
             } finally {
                 if (conn != null) {
                     new MySQLMethods().closeConnection(conn);
