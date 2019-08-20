@@ -341,7 +341,7 @@ class MySQLMethods {
         path = path.replace("\\", "\\\\");
         return path;
     }
-
+    
     public static void handleContact(String contactName, String phoneNumber) {
         boolean addContact = false;
         conn = getConnection();

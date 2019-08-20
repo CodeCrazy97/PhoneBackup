@@ -24,7 +24,7 @@ class TextMessagesBackup {
     public static LinkedList<String> phoneNumbers = new LinkedList<>();
 
     public static void main(String[] args) throws IOException, SQLException {
-        
+
         // Try to connect to the database. If we can't connect, then display error message and exit.
         conn = new MySQLMethods().getConnection();
         if (conn == null) {
@@ -114,9 +114,7 @@ class TextMessagesBackup {
 
                         boolean incomingMessage = false;
                         //Determine if the message is incoming or outgoing
-                        if (currLine.contains("type=\"2\" ")) {  //Outgoing
-
-                        } else {  //Incoming
+                        if (!currLine.contains("type=\"2\" ")) {   //Incoming
                             incomingMessage = true;
                         }
 
@@ -309,10 +307,8 @@ class TextMessagesBackup {
             Class.forName(myDriver);
 
             String query = "SELECT * FROM text_messages WHERE sent_timestamp = '" + timestamp + "' AND contact_id = (SELECT id FROM contacts WHERE person_name = '" + contactName + "');";  //Prevents from putting duplicate messages in the database ("duplicates" are messages that have been sent to the same address at the same time)
-            // create the java statement
-            st = conn.createStatement();
 
-            // execute the query, and get a java resultset
+            st = conn.createStatement();
             rs = st.executeQuery(query);
 
             // iterate through the java resultset
