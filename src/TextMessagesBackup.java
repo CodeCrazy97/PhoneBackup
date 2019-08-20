@@ -24,6 +24,8 @@ class TextMessagesBackup {
     public static LinkedList<String> phoneNumbers = new LinkedList<>();
 
     public static void main(String[] args) throws IOException, SQLException {
+        
+        // Try to connect to the database. If we can't connect, then display error message and exit.
         conn = new MySQLMethods().getConnection();
         if (conn == null) {
             System.out.println("\nUnable to connect to the database. \nPlease check the connection. \nTry manually starting MySQL server. \nYou may need to delete the aria_log.* file, \nlocated in C:\\xampp\\mysql\\data");
@@ -124,6 +126,7 @@ class TextMessagesBackup {
 
                             String sql = "";
                             try {
+                                conn = new MySQLMethods().getConnection();  // try again to connect. Connection closes after being left open for too long.
                                 sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('" + messageQueue + "', " + incomingMessage + ", (SELECT id FROM contacts WHERE person_name = '" + contactName + "'), '" + new MySQLMethods().createSQLTimestamp(timestamp) + "'); ";
                             } catch (Exception ex) {
                                 System.out.println("Exception: " + ex);
@@ -220,6 +223,7 @@ class TextMessagesBackup {
                                 mmsText = fixSMSString(mmsText);
 
                                 try {
+                                    conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
                                     if (recipientCount >= 2) {
                                         if (mmsContainsText) {
                                             sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[GROUP MSG] " + mmsText + "\\n\\n" + alsoSentTo + "', " + mmsIncoming + ", (select id from contacts where person_name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
@@ -253,10 +257,10 @@ class TextMessagesBackup {
                     }
                 }
                 System.out.println("Finished backing up text messages!");
-                
+
                 // Try to update the timestamp for the text messages backup.
                 new MySQLMethods().updateBackup("text messages");
-                
+
             } finally {
                 if (conn != null) {
                     new MySQLMethods().closeConnection(conn);
