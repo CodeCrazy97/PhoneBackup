@@ -120,22 +120,12 @@ public class ViewPhoneCalls {
             minutes %= 60;               // Make minutes less than 60. 
             int days = hours / 24;
             hours %= 24;
-            int weeks = days / 7;
-            days %= 7;
 
-            String weeksString = "";
             String daysString = "";
             String hoursString = "";
             String minutesString = "";
             String secondsString = "";
 
-            if (weeks > 0) {
-                if (weeks == 1) {
-                    weeksString = weeks + " week, ";
-                } else {
-                    weeksString = weeks + " weeks, ";
-                }
-            }
             if (days > 0) {
                 if (days == 1) {
                     daysString = days + " day, ";
@@ -164,7 +154,7 @@ public class ViewPhoneCalls {
                     secondsString = seconds + " seconds";
                 }
             }
-            String duration = weeksString + daysString + hoursString + minutesString + secondsString;  // Put the entire result in one string so we can check if a comma needs to be removed at the end.
+            String duration = daysString + hoursString + minutesString + secondsString;  // Put the entire result in one string so we can check if a comma needs to be removed at the end.
             if (duration.charAt(duration.length() - 2) == ',') {
                 return duration.substring(0, duration.length() - 2);
             } else {
