@@ -107,7 +107,7 @@ public class ViewPhoneCalls {
                 "##########################################################################");
     }
 
-    // secondsFormatted: converts seconds to hours, minutes, and seconds.
+    // secondsFormatted: converts seconds to days, hours, minutes, and seconds.
     // For example: input 95 seconds would return "1 minute, 35 seconds"
     public static String secondsFormatted(int seconds) {
         if (seconds == 0) {  // Avoid further processing if there are zero seconds.
@@ -118,8 +118,8 @@ public class ViewPhoneCalls {
             seconds %= 60;               // Make seconds less than 60.
             int hours = minutes / 60;      // Extract hours out of seconds.
             minutes %= 60;               // Make minutes less than 60. 
-            int days = hours / 24;
-            hours %= 24;
+            int days = hours / 24;       // Extract days out of hours.
+            hours %= 24;                // Make hours less than 24.
 
             String daysString = "";
             String hoursString = "";
