@@ -37,7 +37,8 @@ class CallsBackup {
             System.out.println();
             System.out.println("Getting ready to backup phone calls. Click OK to continue. This may take a few minutes.");
 
-            while ((currLine = br.readLine()) != null) {
+            int beginTimeMillis = (int) System.currentTimeMillis();
+            while ((currLine = br.readLine()) != null) {                
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
                     conn = new MySQLMethods().getConnection();
                     if (conn == null) {
@@ -108,7 +109,8 @@ class CallsBackup {
                     }
                 }
             }
-            System.out.println("Finished backing up phone calls.");
+            int endTimeMillis = (int) System.currentTimeMillis();
+            System.out.println("Finished backing up phone calls. That took " + secondsFormatted((endTimeMillis - beginTimeMillis)/1000) + ".");
 
             // Try to update the timestamp for the phone calls backup.
             new MySQLMethods().updateBackup("phone calls");
@@ -135,4 +137,55 @@ class CallsBackup {
         sql = sql.replace("&amp;", "&");
         return sql;
     }
+    
+    // secondsFormatted: converts seconds to hours, minutes, and seconds.
+    // For example: input 95 seconds would return "1 minute, 35 seconds"
+    public static String secondsFormatted(int seconds) {
+        if (seconds == 0) {  // Avoid further processing if there are zero seconds.
+            return "0 seconds";
+        }
+        try {
+            int minutes = seconds / 60;    // Extract minutes out of the seconds.
+            seconds %= 60;               // Make seconds less than 60.
+            int hours = minutes / 60;      // Extract hours out of seconds.
+            minutes %= 60;               // Make minutes less than 60. 
+            
+            String hoursString = "";
+            String minutesString = "";
+            String secondsString = "";
+
+            
+            if (hours > 0) {
+                if (hours == 1) {
+                    hoursString = hours + " hour, ";
+                } else {
+                    hoursString = hours + " hours, ";
+                }
+            }
+            if (minutes > 0) {
+                if (minutes == 1) {
+                    minutesString = minutes + " minute, ";
+                } else {
+                    minutesString = minutes + " minutes, ";
+                }
+            }
+            if (seconds > 0) {
+                if (seconds == 1) {
+                    secondsString = seconds + " second";
+                } else {
+                    secondsString = seconds + " seconds";
+                }
+            }
+            String duration = hoursString + minutesString + secondsString;  // Put the entire result in one string so we can check if a comma needs to be removed at the end.
+            if (duration.charAt(duration.length() - 2) == ',') {
+                return duration.substring(0, duration.length() - 2);
+            } else {
+                return duration;
+            }
+        } catch (Exception ex) {
+            System.out.println("Exception trying to format total time spent on the phone: " + ex);
+        }
+        return null;
+    }
+    
 }
