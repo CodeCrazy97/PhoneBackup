@@ -46,7 +46,7 @@ class MySQLMethods {
         try {
             Class.forName("com.mysql.jdbc.Driver");
             conn = DriverManager.getConnection(
-                    "jdbc:mysql://localhost:3306/phone_backup", "root", "");
+                    "jdbc:mysql://localhost:3306/phone_backup", "root", "granted27");
         } catch (Exception ex) {
             // If the database does not exist, then run the sql script that creates it.
             String basePath = new File("").getAbsolutePath();
@@ -70,7 +70,7 @@ class MySQLMethods {
                 // Now try getting a connection to the database, since it should be created.
                 try {
                     conn = DriverManager.getConnection(
-                            "jdbc:mysql://localhost:3306/phone_backup", "root", "");
+                            "jdbc:mysql://localhost:3306/phone_backup", "root", "granted27");
                 } catch (SQLException ex1) {
                     System.out.println("Exception trying to get a connection to the database: " + ex1);
                 }
@@ -198,7 +198,7 @@ class MySQLMethods {
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT DATE_FORMAT(call_timestamp, '%W %M %d, %Y') FROM phone_Calls ORDER BY call_timestamp ASC LIMIT 1;";
+            String query = "SELECT DATE_FORMAT(call_timestamp, '%W %M %d, %Y') FROM phone_calls ORDER BY call_timestamp ASC LIMIT 1;";
 
             st = conn.createStatement();
             rs = st.executeQuery(query);
