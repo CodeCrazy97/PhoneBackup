@@ -7,6 +7,6 @@ A prerequisite to running this program is having MySQL installed on your machine
 
 To run this app, simply have the text messages and/or phone calls XML file(s) downloaded. Double-click on the "run_phone_backup.bat" file. After you've selected the action you'd like this program to take (such as backup text messages), enter the file path to the XML file. The actions the program is taking will be displayed on the screen.
 
-The below example shows how a user runs the program for backing up text messages.
+The below example shows how to run the project for backing up text messages.
 
 ![Example backup text messages.](https://github.com/CodeCrazy97/PhoneBackup/blob/master/exampleRun.png)
