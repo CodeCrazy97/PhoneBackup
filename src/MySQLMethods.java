@@ -13,15 +13,15 @@ import java.sql.Statement;
 import java.util.LinkedList;
 
 class MySQLMethods {
-
+    
     static Connection conn = null;
     static Statement st = null;
     static ResultSet rs = null;
-
+    
     public MySQLMethods() {
-
+        
     }
-
+    
     public static Connection getConnection() {
         // First, check that the MySQL server is running.
         boolean result = isRunning("mysqld.exe");
@@ -42,7 +42,7 @@ class MySQLMethods {
                 System.out.println("Exception waiting on mysql to turn on: " + ex);
             }
         }
-
+        
         try {
             Class.forName("com.mysql.jdbc.Driver");
             conn = DriverManager.getConnection(
@@ -55,7 +55,7 @@ class MySQLMethods {
                 System.out.println("The program will attempt to create the database.");
                 basePath = basePath.substring(0, basePath.lastIndexOf("\\"));  // Go back a directory.
                 String createDB = basePath.replace("\\", "/") + "/create_database.bat";
-
+                
                 try {
                     Runtime.getRuntime().exec("cmd /c start \"\" \"" + createDB + "\"");
                 } catch (IOException ex1) {
@@ -89,7 +89,7 @@ class MySQLMethods {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
-
+            
             String query = "";
             if (incoming) {
                 query = "SELECT COUNT(*) FROM phone_calls WHERE incoming = 1 AND duration > 0;";
@@ -115,14 +115,14 @@ class MySQLMethods {
         }
         return -1;
     }
-
+    
     public static int getTimeSpentOnPhone() {
         conn = getConnection();
         try {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
-
+            
             String query = "SELECT SUM(duration) FROM phone_calls;";
 
             // create the java statement
@@ -153,9 +153,9 @@ class MySQLMethods {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
-
+            
             String query = "SELECT p.duration, DATE_FORMAT(p.call_timestamp, '%W %M %d, %Y'), c.person_name FROM phone_calls p JOIN (SELECT person_name, id FROM contacts) c ON c.id = p.contact_id ORDER BY p.duration DESC LIMIT 1;";
-
+            
             st = conn.createStatement();
             rs = st.executeQuery(query);
             // iterate through the java resultset
@@ -174,7 +174,7 @@ class MySQLMethods {
         }
         return null;
     }
-
+    
     public static void closeStatement(Statement st) {
         try {
             st.close();
@@ -182,7 +182,7 @@ class MySQLMethods {
             System.out.println("Exception trying to close SQL statement set: " + ex.getMessage());
         }
     }
-
+    
     public static void closeResultSet(ResultSet rs) {
         try {
             rs.close();
@@ -190,16 +190,16 @@ class MySQLMethods {
             System.out.println("Exception trying to close result set: " + ex.getMessage());
         }
     }
-
+    
     public static String getEarliestPhoneCall() {
         conn = getConnection();
         try {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
-
+            
             String query = "SELECT DATE_FORMAT(call_timestamp, '%W %M %d, %Y') FROM phone_calls ORDER BY call_timestamp ASC LIMIT 1;";
-
+            
             st = conn.createStatement();
             rs = st.executeQuery(query);
 
@@ -207,7 +207,7 @@ class MySQLMethods {
             while (rs.next()) {
                 return rs.getString(1);
             }
-
+            
         } catch (Exception e) {
             System.out.println("Exception trying to get the earliest phone call: " + e.getMessage());
         } finally {
@@ -217,7 +217,7 @@ class MySQLMethods {
         }
         return null;
     }
-
+    
     public static String createSQLTimestamp(String timestamp) throws Exception {
         String fixedTimestamp = "";
         // Get year.
@@ -285,10 +285,10 @@ class MySQLMethods {
         }
         // Get minutes and seconds.
         fixedTimestamp += timestamp.substring(timestamp.indexOf(":"), timestamp.lastIndexOf(" "));
-
+        
         return fixedTimestamp;
     }
-
+    
     public static void closeConnection(Connection conn) {
         try {
             conn.close();
@@ -296,14 +296,14 @@ class MySQLMethods {
             System.out.println("Exception trying to close the connection: " + ex.getMessage());;
         }
     }
-
+    
     public static boolean isRunning(String process) {
         boolean found = false;
         try {
             File file = File.createTempFile("realhowto", ".vbs");
             file.deleteOnExit();
             FileWriter fw = new java.io.FileWriter(file);
-
+            
             String vbs = "Set WshShell = WScript.CreateObject(\"WScript.Shell\")\n"
                     + "Set locator = CreateObject(\"WbemScripting.SWbemLocator\")\n"
                     + "Set service = locator.ConnectServer()\n"
@@ -313,7 +313,7 @@ class MySQLMethods {
                     + "wscript.echo process.Name \n"
                     + "Next\n"
                     + "Set WSHShell = Nothing\n";
-
+            
             fw.write(vbs);
             fw.close();
             Process p = Runtime.getRuntime().exec("cscript //NoLogo " + file.getPath());
@@ -327,19 +327,19 @@ class MySQLMethods {
                 }
             }
             input.close();
-
+            
         } catch (Exception e) {
             System.out.println("Exception trying to check if mysqld.exe is running: " + e.getMessage());
         }
         return found;
     }
-
+    
     public static String fixFilePath(String path) {
         path = path.replace("\"", "");
         path = path.replace("\\", "\\\\");
         return path;
     }
-
+    
     public static void handleContact(String contactName, String phoneNumber) {
         boolean addContact = false;
         conn = getConnection();
@@ -347,9 +347,9 @@ class MySQLMethods {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
-
+            
             String query = "SELECT COUNT(*) FROM contacts WHERE person_name = '" + contactName + "' OR person_name = '" + phoneNumber + "';";
-
+            
             st = conn.createStatement();
             rs = st.executeQuery(query);
 
@@ -359,12 +359,12 @@ class MySQLMethods {
                     addContact = true;
                 }
             }
-
+            
             rs.close();
             if (addContact) {  //User wants to add contact to db or user always wants to add a new contact to the db.
                 try {
                     Class.forName("com.mysql.jdbc.Driver");
-
+                    
                     String sql = "";
                     if (contactName.equals("(Unknown)")) {
                         // If this contact does not have a name, just use the phone number as its "name".
@@ -372,7 +372,7 @@ class MySQLMethods {
                     } else {
                         sql = "INSERT INTO contacts (person_name, phone_number) VALUES ('" + contactName + "', '" + phoneNumber + "'); ";
                     }
-
+                    
                     PreparedStatement preparedStatement = conn.prepareStatement(sql);
                     preparedStatement.executeUpdate();
                     System.out.println(sql);
@@ -391,14 +391,14 @@ class MySQLMethods {
             closeConnection(conn);
         }
     }
-
+    
     public static String getContactNameFromID(int id) {
         conn = new MySQLMethods().getConnection();
         try {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
-
+            
             String query = "SELECT person_name FROM contacts WHERE id = " + id;
 
             // create the java statement
@@ -421,6 +421,37 @@ class MySQLMethods {
         // No contact existed with that id. So, just return the id itself.
         return "" + id;
     }
+    
+    public static LinkedList<TextMessage> getTextMessages() {
+        LinkedList<TextMessage> textMessages = new LinkedList<TextMessage>();
+        conn = new MySQLMethods().getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+            
+            String query = "SELECT t.msg_text, t.sent_timestamp, c.phone_number, c.person_name "
+                    + "FROM text_messages t JOIN (SELECT person_name, phone_number, id FROM contacts) c ON t.contact_id = c.id "
+                    + "ORDER BY t.sent_timestamp ASC";
+
+            // create the java statement
+            st = conn.createStatement();
+            // execute the query, and get a java resultset
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                textMessages.add(new TextMessage(rs.getString(1), rs.getString(2), rs.getInt(3), rs.getString(4)));
+            }
+        } catch (Exception e) {
+            System.out.println("Exception fetching text messages from the database: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return textMessages;
+    }
 
     // Fetches the last backup timestamp for text messages or phone calls (type determines which one we're fetching the timestamp for)
     public static String getLastBackupDate(String type) {
@@ -429,9 +460,9 @@ class MySQLMethods {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
-
+            
             String query = "SELECT DATE_FORMAT(backup_timestamp, '%a %b %d, %Y at %r') FROM last_backup_timestamps WHERE backup_name = '" + type + "';";
-
+            
             st = conn.createStatement();
             rs = st.executeQuery(query);
 
@@ -440,7 +471,7 @@ class MySQLMethods {
                 return rs.getString(1);
             }
         } catch (Exception e) {
-            System.out.println("Exception trying to get total number of dialed phone calls: " + e.getMessage());
+            System.out.println("Exception trying to get last backup date/time: " + e.getMessage());
         } finally {
             closeResultSet(rs);
             closeStatement(st);
@@ -461,7 +492,7 @@ class MySQLMethods {
 
             // execute the java preparedstatement
             preparedStmt.executeUpdate();
-
+            
             conn.close();
         } catch (Exception e) {
             System.err.println("Exception trying to update the backup timestamp: " + e.getMessage());
@@ -469,7 +500,7 @@ class MySQLMethods {
             closeConnection(conn);
         }
     }
-
+    
     public static boolean phoneNumberAlreadyHandled(String phoneNumber, LinkedList<String> phoneNumbers) {
         for (int i = 0; i < phoneNumbers.size(); i++) {
             if (phoneNumbers.get(i).equals(phoneNumber)) {

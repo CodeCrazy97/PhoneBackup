@@ -13,12 +13,7 @@ class TextMessagesBackup {
     static Connection conn = null;
     static ResultSet rs = null;
     static Statement st = null;
-
-    //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
-    //having to confirm more than once whether or not to allow the program to create a new contact. Without the
-    //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
-    //to the database (this would happen if more than one message was sent/received from the same contact).
-    public static LinkedList<String> phoneNumbers = new LinkedList<>();
+    static LinkedList<TextMessage> textMessages;
 
     public static void main(String[] args) throws IOException, SQLException {
 
@@ -33,89 +28,77 @@ class TextMessagesBackup {
 
         // Get a connection to the file that contains the text messages.
         File file = new File(path);  // Full file path to the text messages XML file.
-        if (!file.exists()) { //we might not want to add text to a file that already existed
+        if (!file.exists()) {
             System.out.println("File does not exist.");
             throw new FileNotFoundException("Path to text messages XML file does not exist.");
         }
+
+        // Get all the text messages, place them into a linked list. 
+        // Will use the linked list to check if texts already exist.
+        textMessages = new MySQLMethods().getTextMessages();
+
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
             try {
                 String currLine;  //The line in the file currently being viewed by the program. The xml file is
                 // broken up by lines; so, one line represents a single SMS text message. MMS messages (text messages
                 // that contain pictures or contain a lot of text) span multiple lines and are handled a little differently.
 
-                String mmsContactName = "";
-                int mmsIncoming = 1;  // 1 = true (the message is from someone to me); 0 = false (the message was sent from my phone to someone else)
-                String mmsDate = "";  // The date the mms message was sent.
-                String mmsText = "";  // Text contained in the mms message.
-                boolean mmsContainsText = false;  // Whether or not the mms contains text. If it does not contain text.
-
-                // recipientCount ~ the number of people a message was sent to
-                int recipientCount = 0;
-                LinkedList<String> mmsGroupMessagePhoneNumbers = new LinkedList<>();  // Will hold all the phone numbers that a group message was sent to.
-                String alsoSentTo = "Recipients: ";  // A string that will tell who else a group message was sent to.
-                String groupMessagePhoneNumber = "";  // Used to store the number for a group message. This will be needed if the message comes from a number that is not associated with a contact name.
                 System.out.println();
                 System.out.println("Getting ready to backup text messages. This may take a few minutes.");
 
                 int beginTimeMillis = (int) System.currentTimeMillis();
                 while ((currLine = br.readLine()) != null) {
                     if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
-//messageQueue is the actual text of the currently viewed message. The text is between  body= and toa=" in the line.
-                        String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
-
-                        //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
-                        messageQueue = fixSMSString(messageQueue);
 
                         //Fetch the phone number that the message was sent/received to/from.
                         String phoneNumber = currLine.substring(29, currLine.indexOf("\" date"));
-                        //Replace irrelevant characters in the phone number. (Remember: phoneNumber needs to fit in the database as a bigint, not a string.)
-                        phoneNumber = phoneNumber.replace("\\", "");
-                        phoneNumber = phoneNumber.replace("-", "");
-                        phoneNumber = phoneNumber.replace(" ", "");
-                        phoneNumber = phoneNumber.replace(")", "");
-                        phoneNumber = phoneNumber.replace("(", "");
+                        int phoneNumberInteger = fixPhoneNumber(phoneNumber);
 
                         //Get the contact that the message was sent/received to/from
                         String contactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.lastIndexOf("\""));
                         contactName = fixSMSString(contactName);
-
                         if (contactName.equals("(Unknown)")) {  // This message does not come from one of my contacts - use the phone number as a stand-in for the name of the contact.
                             contactName = phoneNumber;
                         }
-//////////////////////////////////////////////////////////////////////////////////
-/////////////Check to see if the contact already exists in the database.//////////
-/////////////If not, then create new contact only if user wants to.///////////////
-//////////////////////////////////////////////////////////////////////////////////
-                        if (!phoneNumberConsidered(phoneNumber)) {
-                            new MySQLMethods().handleContact(contactName, phoneNumber);
-                        }
-/////////////////////////////////////////////////////////////////////////////////////////////
-////////Finished inserting new contact (if applicable).//////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////
 
                         //Get the timestamp of when the message was sent
                         String timestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.lastIndexOf("\" contact"));
 
 //////////////////////////////////////////////////////////////////////////////////
 /////////////Check to see if the sms message already exists in the database.//////
+/////////////Old way: query database.
+/////////////New way: check linked list of text messages. When/if matching message
+/////////////is found, delete it from the list and skip the current message in XML file.
 //////////////////////////////////////////////////////////////////////////////////
                         try {
-                            if (messageExists(new MySQLMethods().createSQLTimestamp(timestamp), contactName)) {
+                            if (messageExists(new MySQLMethods().createSQLTimestamp(timestamp), contactName, phoneNumberInteger)) {
+                                // Go to next text message in the XML file.
                                 continue;
                             }
                         } catch (Exception ex) {
                             System.out.println("Exception trying to check if a text message exists: " + ex);
                         }
+
+                        //messageQueue is the actual text of the currently viewed message. The text is between  body= and toa=" in the line.
+                        String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
+                        //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
+                        messageQueue = fixSMSString(messageQueue);
+
+                        //////////////////////////////////////////////////////////////////////////////////
+                        /*
+                        No need to check if a contact already exists. This will be taken care of when inserting
+                        text messages into the database:
+                        "insert into text_messages (contact_id, ...) values ((select id from contacts where person_name = xxx and phone_number = yyy..."
+                        If the above insert fails due to there not being the appropriate person_name and 
+                        phone_number, then we can create the new contact. Afterwards, the text message can
+                        be inserted. 
+                        This way there is no need to explicitly check if the contact exists.
+                         */
+                        //////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
 ////////Finished checking if the sms message exists in the database./////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////
-
-                        boolean incomingMessage = false;
-                        //Determine if the message is incoming or outgoing
-                        if (!currLine.contains("type=\"2\" ")) {   //Incoming
-                            incomingMessage = true;
-                        }
-
+                        
                         String sqlInsert = "";  // Used for debugging perposes (in case an insertion fails, would want to display what the insertion was).
                         try {
                             Class.forName("com.mysql.jdbc.Driver");
@@ -294,35 +277,15 @@ class TextMessagesBackup {
         return message;
     }
 
-    public static boolean messageExists(String timestamp, String contactName) {
-        conn = new MySQLMethods().getConnection();
-        boolean exists = false;
-//////////////////////////////////////////////////////////////////////////////////
-/////////////Check to see if the message already exists in the database.//////////
-//////////////////////////////////////////////////////////////////////////////////
-        try {
-            // create our mysql database connection
-            String myDriver = "org.gjt.mm.mysql.Driver";
-            Class.forName(myDriver);
-
-            String query = "SELECT * FROM text_messages WHERE sent_timestamp = '" + timestamp + "' AND contact_id = (SELECT id FROM contacts WHERE person_name = '" + contactName + "');";  //Prevents from putting duplicate messages in the database ("duplicates" are messages that have been sent to the same address at the same time)
-
-            st = conn.createStatement();
-            rs = st.executeQuery(query);
-
-            // iterate through the java resultset
-            while (rs.next()) {
-                exists = true;
-                break;
+    public static boolean messageExists(String timestamp, String contactName, int phoneNumber) {
+        for (int i = 0; i < textMessages.size(); i++) {
+            if (textMessages.get(i).getSenderName().equals(contactName) && textMessages.get(i).getSenderPhoneNumber() == phoneNumber && textMessages.get(i).getTimestamp().equals(timestamp)) {
+                // Remove the text message from the linked list (this will shorten the linked list so that next time we search through it, there's not as much to look at).
+                textMessages.remove(i);
+                return true;
             }
-        } catch (Exception e) {
-            System.out.println("Got an exception: " + e.getMessage());
-        } finally {
-            new MySQLMethods().closeResultSet(rs);
-            new MySQLMethods().closeStatement(st);
-            new MySQLMethods().closeConnection(conn);
         }
-        return exists;
+        return false;
     }
 
     public static String getContactName(String phoneNumber) {
@@ -407,5 +370,17 @@ class TextMessagesBackup {
             System.out.println("Exception trying to format total time spent on the phone: " + ex);
         }
         return null;
+    }
+
+    // fixPhoneNumber: takes a string and strips characters typically found in a phone number so that the number becomes an integer.
+    public static int fixPhoneNumber(String phoneNumber) throws NumberFormatException {
+        phoneNumber = phoneNumber.replace("\\", "");
+        phoneNumber = phoneNumber.replace("-", "");
+        phoneNumber = phoneNumber.replace(" ", "");
+        phoneNumber = phoneNumber.replace(")", "");
+        phoneNumber = phoneNumber.replace("(", "");
+
+        // Try converting the phone number to an integer. If this cannot be done, then an error will be thrown.
+        return Integer.parseInt(phoneNumber);
     }
 }
