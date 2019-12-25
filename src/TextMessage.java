@@ -3,17 +3,17 @@ public class TextMessage {
 
     private String messageText;
     private String timestamp;
-    private int senderPhoneNumber;
+    private long senderPhoneNumber;
     private String senderName;
 
-    public TextMessage(String messageText, String timestamp, int senderPhoneNumber, String senderName) {
+    public TextMessage(String messageText, String timestamp, long senderPhoneNumber, String senderName) {
         this.messageText = messageText;
         this.timestamp = timestamp;
         this.senderPhoneNumber = senderPhoneNumber;
         this.senderName = senderName;
     }
 
-    public int getSenderPhoneNumber() {
+    public long getSenderPhoneNumber() {
         return senderPhoneNumber;
     }
 
