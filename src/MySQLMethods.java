@@ -467,11 +467,25 @@ class MySQLMethods {
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT t.msg_text, date_format(t.msg_timestamp, '%Y-%c-%e %k:%i:%s'), c.phone_number, c.person_name\n"
+            // Fetch all the text messages from the database, sorting them first
+            // according to if they start with '[PICTURE]'  (this means it is a 
+            // text message containing a picture) and second according to msg_timestamp.
+            // We want picture texts to appear last in the query results, because 
+            // they appear last in the XML file created by SMS Backup & Restore.
+            // (Putting them last in the query results will be more efficient.)
+            String query = "(SELECT t.msg_text, DATE_FORMAT(t.msg_timestamp, '%Y-%c-%e %k:%i:%s'), c.phone_number, c.person_name\n"
                     + "FROM text_messages t\n"
                     + "JOIN (SELECT person_name, phone_number, id\n"
                     + "FROM contacts) c ON t.sender_id = c.id\n"
-                    + "ORDER BY t.msg_timestamp ASC";
+                    + "WHERE msg_text NOT LIKE '[PICTURE]%'\n"
+                    + "ORDER BY t.msg_timestamp ASC)\n"
+                    + "UNION ALL\n"
+                    + "(SELECT t.msg_text, DATE_FORMAT(t.msg_timestamp, '%Y-%c-%e %k:%i:%s'), c.phone_number, c.person_name\n"
+                    + "FROM text_messages t\n"
+                    + "JOIN (SELECT person_name, phone_number, id\n"
+                    + "FROM contacts) c ON t.sender_id = c.id\n"
+                    + "WHERE t.msg_text LIKE '[PICTURE]%'\n"
+                    + "ORDER BY t.msg_timestamp ASC);";
 
             // create the java statement
             st = conn.createStatement();

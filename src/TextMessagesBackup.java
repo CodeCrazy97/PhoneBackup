@@ -10,6 +10,9 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 class TextMessagesBackup {
 
@@ -37,7 +40,7 @@ class TextMessagesBackup {
         }
 
         // Get all the text messages, place them into a linked list. 
-        // Will use the linked list to check if texts already exist.
+        // Will be used to check if texts already exist.
         textMessages = new MySQLMethods().getTextMessages();
 
         // textsToInsert - the text messages that will need to be inserted into the database.
@@ -49,7 +52,6 @@ class TextMessagesBackup {
         Map<String, Contact> oldContacts = new MySQLMethods().getOldContacts();
         Map<String, Contact> duplicates = new TreeMap<>();
 
-        System.out.println("size before checking xml file = " + textMessages.size());
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
             try {
                 String currLine;  //The line in the file currently being viewed by the program. The xml file is
@@ -60,7 +62,15 @@ class TextMessagesBackup {
                 System.out.println("Getting ready to backup text messages. This may take a few minutes.");
 
                 int beginTimeMillis = (int) System.currentTimeMillis();
+                int lastAlertMessageTime = beginTimeMillis;
                 while ((currLine = br.readLine()) != null) {
+
+                    // Every few hundred milliseconds, tell the user what the program's status is.
+                    if (((int) System.currentTimeMillis() - lastAlertMessageTime) >= 2500) {
+                        System.out.println("\n\nNot finished yet!\nSo far, the program has found " + textsToInsert.size() + " messages that need to be backed up.\n\n");
+                        lastAlertMessageTime = (int) System.currentTimeMillis();
+                    }
+
                     if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
 
                         //Fetch the phone number that the message was sent/received to/from.
@@ -105,17 +115,6 @@ class TextMessagesBackup {
                         String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
                         messageQueue = fixSMSString(messageQueue);  // Replace certain characters in the string.
 
-                        //////////////////////////////////////////////////////////////////////////////////
-                        /*
-                        No need to check if a contact already exists. This will be taken care of when inserting
-                        text messages into the database:
-                        "insert into text_messages (contact_id, ...) values ((select id from contacts where person_name = xxx and phone_number = yyy..."
-                        If the above insert fails due to there not being the appropriate person_name and 
-                        phone_number, then we can create the new contact. Afterwards, the text message can
-                        be inserted. 
-                        This way there is no need to explicitly check if the contact exists.
-                         */
-                        //////////////////////////////////////////////////////////////////////////////////
                         // The text message does not exist in the database. Add it to the queue for insertion.
                         textsToInsert.add(new TextMessage(messageQueue, timestamp, phoneNumberLong, contactName));
 
@@ -289,7 +288,6 @@ class TextMessagesBackup {
                     System.out.println("ClassNotFoundException: " + cnfe);
                 }
 
-                System.out.println("about to try inserting text messages. size = " + textMessages.size());
                 // Try to insert the text messages.
                 try {
                     Class.forName("com.mysql.jdbc.Driver");
@@ -315,7 +313,6 @@ class TextMessagesBackup {
                 }
 
                 int endTimeMillis = (int) System.currentTimeMillis();
-                System.out.println("time in millis: " + (endTimeMillis - beginTimeMillis));
                 System.out.println("Finished backing up text messages! That took " + secondsFormatted((endTimeMillis - beginTimeMillis) / 1000) + ".");
 
                 // Try to update the timestamp for the text messages backup.
@@ -323,13 +320,6 @@ class TextMessagesBackup {
             } catch (Exception e) {
                 System.out.println(e);
             }
-        }
-    }
-
-    public static void printMap(Map map) {
-        Set<Map.Entry<String, Contact>> entrySet = map.entrySet();
-        for (Map.Entry<String, Contact> entry : entrySet) {
-            System.out.println(entry.getValue().getPersonName() + ", " + entry.getValue().getPhoneNumber());
         }
     }
 
@@ -392,10 +382,9 @@ class TextMessagesBackup {
             }
         }
     }
-    
+
     // Some strange things happen to text messages when they are turned into XML!
     // Below, I fix odd characters and turn them into what they should be.
-
     public static String fixSMSString(String message) {
         message = message.replace("&#55357;&#56832;", "â˜º");
         message = message.replace("ï¿½", "\'");  //Replace all ï¿½ with apostraphes.
@@ -414,7 +403,7 @@ class TextMessagesBackup {
         for (int i = 0; i < textMessages.size(); i++) {
             if (textMessages.get(i).getSenderName().equals(contactName) && textMessages.get(i).getSenderPhoneNumber() == phoneNumber && textMessages.get(i).getTimestamp().equals(timestamp)) {
                 // Remove the text message from the linked list (this will shorten the linked list so that next time we search through it, there's not as much to look at).
-                //textMessages.remove(i);
+                textMessages.remove(i);
                 return true;
             }
         }
