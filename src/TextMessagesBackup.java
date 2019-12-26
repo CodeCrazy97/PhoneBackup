@@ -7,6 +7,9 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
 import java.util.LinkedList;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 
 class TextMessagesBackup {
 
@@ -40,6 +43,13 @@ class TextMessagesBackup {
         // textsToInsert - the text messages that will need to be inserted into the database.
         LinkedList<TextMessage> textsToInsert = new LinkedList<>();
 
+        // contacts - a map of all the contacts that were texted and/or texts were received from.
+        // Will insert them later. (Remember: a contact's combined with his/her phone number is unique.)
+        Map<String, Contact> xmlFilecontacts = new TreeMap<>();
+        Map<String, Contact> oldContacts = new MySQLMethods().getOldContacts();
+        Map<String, Contact> duplicates = new TreeMap<>();
+
+        System.out.println("size before checking xml file = " + textMessages.size());
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
             try {
                 String currLine;  //The line in the file currently being viewed by the program. The xml file is
@@ -54,7 +64,7 @@ class TextMessagesBackup {
                     if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
 
                         //Fetch the phone number that the message was sent/received to/from.
-                        String phoneNumber = currLine.substring(29, currLine.indexOf("\" date"));
+                        String phoneNumber = currLine.substring(currLine.indexOf("address=\"") + 9, currLine.indexOf("\" date"));
                         long phoneNumberLong = fixPhoneNumber(phoneNumber);
 
                         //Get the contact that the message was sent/received to/from
@@ -68,6 +78,14 @@ class TextMessagesBackup {
                         String timestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.lastIndexOf("\" contact"));
                         timestamp = new MySQLMethods().createSQLTimestamp(timestamp);
 
+                        // Update the list of contacts.
+                        Contact c = new Contact(phoneNumberLong, contactName);
+                        String key = c.getPersonName() + c.getPhoneNumber();
+                        xmlFilecontacts.put(key, c);
+                        if (oldContacts.containsKey(key)) { // This contact is already in the database.
+                            duplicates.put(key, c);
+                        }
+
 //////////////////////////////////////////////////////////////////////////////////
 /////////////Check to see if the sms message already exists in the database.//////
 /////////////Old way: query database.
@@ -75,7 +93,6 @@ class TextMessagesBackup {
 /////////////is found, delete it from the list and skip the current message in XML file.
 //////////////////////////////////////////////////////////////////////////////////
                         try {
-                            System.out.println("About to check if msg exists for timestamp = " + timestamp + " and phone number = " + phoneNumberLong);
                             if (messageExists(timestamp, contactName, phoneNumberLong)) {
                                 // This message already exists. Go to next text message in the XML file.
                                 continue;
@@ -204,7 +221,7 @@ class TextMessagesBackup {
                                 PreparedStatement preparedStatement = conn.prepareStatement(sql);
                                 preparedStatement.executeUpdate();
                                 System.out.println(sql);
-                                preparedStatement.close();
+                                new MySQLMethods().closePreparedStatement(preparedStatement);
                             } catch (SQLException sqle) {
                                 System.out.println("SQL Exception ...: " + sqle + "\nInsertion failure: " + sql);
                             } catch (ClassNotFoundException cnfe) {
@@ -219,33 +236,86 @@ class TextMessagesBackup {
                      */
                 }
 
-                for (int i = 0; i < textsToInsert.size(); i++) {
-                    try {
-                        insertTextMessage(textsToInsert.get(i));
-                    } catch (SQLException sqle) {
-                        if (sqle.toString().contains("Column 'sender_id' cannot be null")) {  // Most likely caused by the contact not existing in the contacts table.
-                            // Before inserting a new contact, check to see if the person_name needs to be updated.
-                            if (phoneNumberExists(textsToInsert.get(i).getSenderPhoneNumber())) {
-                                updateContact(textsToInsert.get(i).getSenderName(), textsToInsert.get(i).getSenderPhoneNumber());
-                            } else { // Contact's phone number did not already exist. Will assume this is a new contact.
-                                // Try inserting a new contact.
-                                try {
-                                    insertContact(new Contact(textsToInsert.get(i).getSenderPhoneNumber(), textsToInsert.get(i).getSenderName()));
-                                } catch (Exception e) {
-                                    System.out.println("Exception trying to insert a contact: " + e);
-                                }
+                // Strip away duplicates so that we can see the different contact values between the database and the XML file. 
+                Set<Map.Entry<String, Contact>> entrySet3 = duplicates.entrySet();
+                for (Map.Entry<String, Contact> entry3 : entrySet3) {
+                    xmlFilecontacts.remove(entry3.getKey());
+                    oldContacts.remove(entry3.getKey());
+                }
 
-                                // Now try inserting the text message.
-                                try {
-                                    insertTextMessage(textsToInsert.get(i));
-                                } catch (Exception e) {
-                                    System.out.println("Exception trying to insert text message after the contact was inserted: " + e);
-                                }
+                // Now, see if any of the "new" contacts are old contacts that were given a new name.
+                Set<Map.Entry<String, Contact>> entrySet4 = oldContacts.entrySet();
+                for (Map.Entry<String, Contact> entry4 : entrySet4) {
+                    // Find one timestamp from the database for a text message with this contact.
+                    String oneTimestamp = new MySQLMethods().getOneTimestamp(entry4.getValue());
+
+                    // If a timestamp was returned, then there must be a text message with that contact stored in the DB. See if we can the same text message in the textsToInsert linked list.
+                    if (oneTimestamp != null) {
+                        for (int i = 0; i < textsToInsert.size(); i++) {
+                            if (textsToInsert.get(i).getTimestamp().equals(oneTimestamp)) {  // Since these two texts contain the same timestamp, they must be from the same contact. Therefore, we can safely conclude that this contact's information was updated.
+                                updateContactName(entry4.getValue().getPersonName(), textsToInsert.get(i).getSenderName(), textsToInsert.get(i).getSenderPhoneNumber());
+                                xmlFilecontacts.remove(textsToInsert.get(i).getSenderName() + textsToInsert.get(i).getSenderPhoneNumber()); // Remove this contact from the list of contacts to insert below (attempting to insert this contact will cause an error because it already exists).
                             }
                         }
                     }
                 }
+
+                try {
+                    Class.forName("com.mysql.jdbc.Driver");
+                    try {
+                        conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
+                    } catch (Exception ex) {
+                        System.out.println("Exception: " + ex);
+                    }
+                    PreparedStatement preparedStatement = null;
+
+                    // Before inserting any text messages, add any new contacts discovered in the XML file to the database.
+                    Set<Map.Entry<String, Contact>> entrySet = xmlFilecontacts.entrySet();
+                    for (Map.Entry<String, Contact> entry : entrySet) {
+                        try {
+                            String sql = "INSERT INTO contacts (phone_number, person_name) VALUES (" + entry.getValue().getPhoneNumber() + ", '" + entry.getValue().getPersonName() + "'); ";
+
+                            preparedStatement = conn.prepareStatement(sql);
+                            preparedStatement.executeUpdate();
+                            System.out.println(sql);
+                        } catch (SQLException sqle) {
+                            throw sqle;
+                        }
+                    }
+                    if (xmlFilecontacts.size() > 0) {  // The prepared statement is most likely not null - attempt to close it.
+                        new MySQLMethods().closePreparedStatement(preparedStatement);
+                    }
+                } catch (ClassNotFoundException cnfe) {
+                    System.out.println("ClassNotFoundException: " + cnfe);
+                }
+
+                System.out.println("about to try inserting text messages. size = " + textMessages.size());
+                // Try to insert the text messages.
+                try {
+                    Class.forName("com.mysql.jdbc.Driver");
+                    try {
+                        conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
+                    } catch (Exception ex) {
+                        System.out.println("Exception trying to connect to database: " + ex);
+                    }
+                    PreparedStatement preparedStatement = null;
+                    for (int i = 0; i < textsToInsert.size(); i++) {
+
+                        String sql = "INSERT INTO text_messages (msg_text, sender_id, msg_timestamp) VALUES ('" + textsToInsert.get(i).getMessageText() + "', (select id from contacts where phone_number = " + textsToInsert.get(i).getSenderPhoneNumber() + " and person_name = '" + textsToInsert.get(i).getSenderName() + "'), '" + textsToInsert.get(i).getTimestamp() + "'); ";
+
+                        preparedStatement = conn.prepareStatement(sql);
+                        preparedStatement.executeUpdate();
+                        System.out.println(sql);
+                    }
+                    if (textsToInsert.size() > 0) { // The prepared statement is most likely not null - attempt to close it.
+                        new MySQLMethods().closePreparedStatement(preparedStatement);
+                    }
+                } catch (ClassNotFoundException e) {
+                    System.out.println("Exception trying to create Class.forName: " + e);
+                }
+
                 int endTimeMillis = (int) System.currentTimeMillis();
+                System.out.println("time in millis: " + (endTimeMillis - beginTimeMillis));
                 System.out.println("Finished backing up text messages! That took " + secondsFormatted((endTimeMillis - beginTimeMillis) / 1000) + ".");
 
                 // Try to update the timestamp for the text messages backup.
@@ -253,6 +323,13 @@ class TextMessagesBackup {
             } catch (Exception e) {
                 System.out.println(e);
             }
+        }
+    }
+
+    public static void printMap(Map map) {
+        Set<Map.Entry<String, Contact>> entrySet = map.entrySet();
+        for (Map.Entry<String, Contact> entry : entrySet) {
+            System.out.println(entry.getValue().getPersonName() + ", " + entry.getValue().getPhoneNumber());
         }
     }
 
@@ -284,75 +361,41 @@ class TextMessagesBackup {
         return false;
     }
 
-    public static void updateContact(String personName, long phoneNumber) {
+    public static void updateContactName(String oldPersonName, String personName, long phoneNumber) {
         conn = new MySQLMethods().getConnection();
         try {
             // create the java mysql update preparedstatement
-            String query = "UPDATE contacts SET person_name = '" + personName + "' WHERE phone_number = ?";
+            String query = "UPDATE contacts SET person_name = '" + personName + "' WHERE person_name = '" + oldPersonName + "' AND phone_number = '" + phoneNumber + "';";
             PreparedStatement preparedStmt = conn.prepareStatement(query);
-            preparedStmt.setLong(1, phoneNumber);
 
             // execute the java preparedstatement
             preparedStmt.executeUpdate();
 
-            conn.close();
         } catch (Exception e) {
-            System.err.println("Exception trying to update the backup timestamp: " + e.getMessage());
+            System.err.println("Exception trying to update a contact: " + e.getMessage());
         } finally {
-            new MySQLMethods().closeConnection(conn);
-        }
-    }
-
-    public static void insertContact(Contact c) throws SQLException {
-        System.out.println("phone number = " + c.getPhoneNumber());
-        String sql = "";
-        try {
-            Class.forName("com.mysql.jdbc.Driver");
+            // Now, after the contact has been updated, delete text messages for that contact (since you don't want there to be duplicated text messages sent/received to/from him/her).
+            // This is necessary because the textsToInsert linked list will insert old texts that were already in the database (the database contains text messages from the contact before his/her name was updated).
             try {
-                conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
-                sql = "INSERT INTO contacts (phone_number, person_name) VALUES (" + c.getPhoneNumber() + ", '" + c.getPersonName() + "'); ";
-            } catch (Exception ex) {
-                System.out.println("Exception: " + ex);
-            }
+                // create the java mysql update preparedstatement
+                String query = "DELETE FROM text_messages WHERE sender_id = (SELECT id FROM contacts WHERE person_name = '" + personName + "' AND phone_number = " + phoneNumber + ");";
+                PreparedStatement preparedStmt = conn.prepareStatement(query);
 
-            PreparedStatement preparedStatement = conn.prepareStatement(sql);
-            preparedStatement.executeUpdate();
-            System.out.println(sql);
-            preparedStatement.close();
-        } catch (SQLException sqle) {
-            throw sqle;
-        } catch (ClassNotFoundException cnfe) {
-            System.out.println("ClassNotFoundException: " + cnfe);
+                // execute the java preparedstatement
+                preparedStmt.executeUpdate();
+
+                new MySQLMethods().closePreparedStatement(preparedStmt);
+            } catch (Exception e) {
+                System.err.println("Exception trying to update a contact: " + e.getMessage());
+            } finally {
+                new MySQLMethods().closeConnection(conn);
+            }
         }
     }
-
-    public static void insertTextMessage(TextMessage tm) throws SQLException {
-        String sql = "";
-        try {
-            Class.forName("com.mysql.jdbc.Driver");
-            try {
-                conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
-                sql = "INSERT INTO text_messages (msg_text, sender_id, received_timestamp) VALUES ('" + tm.getMessageText() + "', (select id from contacts where phone_number = " + tm.getSenderPhoneNumber() + " and person_name = '" + tm.getSenderName() + "'), '" + tm.getTimestamp() + "'); ";
-            } catch (Exception ex) {
-                System.out.println("Exception: " + ex);
-            }
-
-            PreparedStatement preparedStatement = conn.prepareStatement(sql);
-            preparedStatement.executeUpdate();
-            System.out.println(sql);
-            preparedStatement.close();
-        } catch (SQLException sqle) {
-            System.out.println("SQL Exception ...: " + sqle + "\nInsertion failure: " + sql);
-            if (sqle.toString().contains("Column 'sender_id' cannot be null")) {  // The contact did not exist in the contacts table. Must first create the contact, then inserting the text message will work.
-                throw sqle;
-            }
-        } catch (ClassNotFoundException cnfe) {
-            System.out.println("ClassNotFoundException: " + cnfe);
-        }
-    }
-
+    
     // Some strange things happen to text messages when they are turned into XML!
     // Below, I fix odd characters and turn them into what they should be.
+
     public static String fixSMSString(String message) {
         message = message.replace("&#55357;&#56832;", "â˜º");
         message = message.replace("ï¿½", "\'");  //Replace all ï¿½ with apostraphes.
@@ -371,7 +414,7 @@ class TextMessagesBackup {
         for (int i = 0; i < textMessages.size(); i++) {
             if (textMessages.get(i).getSenderName().equals(contactName) && textMessages.get(i).getSenderPhoneNumber() == phoneNumber && textMessages.get(i).getTimestamp().equals(timestamp)) {
                 // Remove the text message from the linked list (this will shorten the linked list so that next time we search through it, there's not as much to look at).
-                textMessages.remove(i);
+                //textMessages.remove(i);
                 return true;
             }
         }

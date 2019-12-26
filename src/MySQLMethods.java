@@ -11,6 +11,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.LinkedList;
+import java.util.Map;
+import java.util.TreeMap;
 
 class MySQLMethods {
 
@@ -175,11 +177,46 @@ class MySQLMethods {
         return null;
     }
 
+    public static String getOneTimestamp(Contact c) {
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT date_format(msg_timestamp, '%Y-%c-%e %k:%i:%s') FROM text_messages WHERE sender_id = (SELECT id FROM contacts WHERE person_name = '" + c.getPersonName() + "' AND phone_number = " + c.getPhoneNumber() + ");";
+
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getString(1);
+            }
+
+        } catch (Exception e) {
+            System.out.println("Exception trying to get the earliest phone call: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return null;
+    }
+
     public static void closeStatement(Statement st) {
         try {
             st.close();
         } catch (SQLException ex) {
             System.out.println("Exception trying to close SQL statement set: " + ex.getMessage());
+        }
+    }
+
+    public static void closePreparedStatement(PreparedStatement pst) {
+        try {
+            pst.close();
+        } catch (Exception e) {
+            System.out.println("Exception trying to close the prepared statement: " + e);
         }
     }
 
@@ -227,31 +264,31 @@ class MySQLMethods {
         // Get the month.
         switch (timestamp.substring(0, 3)) {
             case "Jan":
-                fixedTimestamp += "01-";
+                fixedTimestamp += "1-";
                 break;
             case "Feb":
-                fixedTimestamp += "02-";
+                fixedTimestamp += "2-";
                 break;
             case "Mar":
-                fixedTimestamp += "03-";
+                fixedTimestamp += "3-";
                 break;
             case "Apr":
-                fixedTimestamp += "04-";
+                fixedTimestamp += "4-";
                 break;
             case "May":
-                fixedTimestamp += "05-";
+                fixedTimestamp += "5-";
                 break;
             case "Jun":
-                fixedTimestamp += "06-";
+                fixedTimestamp += "6-";
                 break;
             case "Jul":
-                fixedTimestamp += "07-";
+                fixedTimestamp += "7-";
                 break;
             case "Aug":
-                fixedTimestamp += "08-";
+                fixedTimestamp += "8-";
                 break;
             case "Sep":
-                fixedTimestamp += "09-";
+                fixedTimestamp += "9-";
                 break;
             case "Oct":
                 fixedTimestamp += "10-";
@@ -430,11 +467,11 @@ class MySQLMethods {
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT t.msg_text, date_format(t.received_timestamp, '%X-%m-%d %k:%i:%S'), c.phone_number, c.person_name\n"
+            String query = "SELECT t.msg_text, date_format(t.msg_timestamp, '%Y-%c-%e %k:%i:%s'), c.phone_number, c.person_name\n"
                     + "FROM text_messages t\n"
                     + "JOIN (SELECT person_name, phone_number, id\n"
                     + "FROM contacts) c ON t.sender_id = c.id\n"
-                    + "ORDER BY t.received_timestamp ASC";
+                    + "ORDER BY t.msg_timestamp ASC";
 
             // create the java statement
             st = conn.createStatement();
@@ -510,5 +547,34 @@ class MySQLMethods {
             }
         }
         return false;
+    }
+
+    public static Map<String, Contact> getOldContacts() {
+        Map<String, Contact> oldContacts = new TreeMap<>();
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT phone_number, person_name FROM contacts;";
+
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                Contact c = new Contact(rs.getLong(1), rs.getString(2));
+                oldContacts.put(c.getPersonName() + c.getPhoneNumber(), c);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to get preexisting contacts: " + e);
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        System.out.println("Old contacts size: " + oldContacts.size());
+        return oldContacts;
     }
 }
