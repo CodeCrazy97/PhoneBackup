@@ -10,9 +10,6 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 class TextMessagesBackup {
 
@@ -46,10 +43,14 @@ class TextMessagesBackup {
         // textsToInsert - the text messages that will need to be inserted into the database.
         LinkedList<TextMessage> textsToInsert = new LinkedList<>();
 
-        // contacts - a map of all the contacts that were texted and/or texts were received from.
-        // Will insert them later. (Remember: a contact's combined with his/her phone number is unique.)
+        // xmlFileContacts - a map of all the contacts in the XML file that were texted and/or texts were received from.
+        // databaseContacts - all the contacts stored in the database.
+        // duplicates - all contacts that appear in both the xmlFileContacts and databaseContacts data structures.
+        // 
+        // Since a contact is uniquely identified by the person_name and phone_number,
+        // these two things combined will be the keys into the below maps.
         Map<String, Contact> xmlFilecontacts = new TreeMap<>();
-        Map<String, Contact> oldContacts = new MySQLMethods().getOldContacts();
+        Map<String, Contact> databaseContacts = new MySQLMethods().getContacts();
         Map<String, Contact> duplicates = new TreeMap<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
@@ -92,7 +93,7 @@ class TextMessagesBackup {
                         Contact c = new Contact(phoneNumberLong, contactName);
                         String key = c.getPersonName() + c.getPhoneNumber();
                         xmlFilecontacts.put(key, c);
-                        if (oldContacts.containsKey(key)) { // This contact is already in the database.
+                        if (databaseContacts.containsKey(key)) { // This contact is already in the database.
                             duplicates.put(key, c);
                         }
 
@@ -239,11 +240,11 @@ class TextMessagesBackup {
                 Set<Map.Entry<String, Contact>> entrySet3 = duplicates.entrySet();
                 for (Map.Entry<String, Contact> entry3 : entrySet3) {
                     xmlFilecontacts.remove(entry3.getKey());
-                    oldContacts.remove(entry3.getKey());
+                    databaseContacts.remove(entry3.getKey());
                 }
 
                 // Now, see if any of the "new" contacts are old contacts that were given a new name.
-                Set<Map.Entry<String, Contact>> entrySet4 = oldContacts.entrySet();
+                Set<Map.Entry<String, Contact>> entrySet4 = databaseContacts.entrySet();
                 for (Map.Entry<String, Contact> entry4 : entrySet4) {
                     // Find one timestamp from the database for a text message with this contact.
                     String oneTimestamp = new MySQLMethods().getOneTimestamp(entry4.getValue());

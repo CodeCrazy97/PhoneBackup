@@ -563,7 +563,7 @@ class MySQLMethods {
         return false;
     }
 
-    public static Map<String, Contact> getOldContacts() {
+    public static Map<String, Contact> getContacts() {
         Map<String, Contact> oldContacts = new TreeMap<>();
         conn = getConnection();
         try {
