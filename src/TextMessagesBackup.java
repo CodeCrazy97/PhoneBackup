@@ -77,16 +77,9 @@ class TextMessagesBackup {
                 System.out.println("Getting ready to backup text messages. This may take a few minutes.");
 
                 int beginTimeMillis = (int) System.currentTimeMillis();
-                int lastAlertMessageTime = beginTimeMillis;
                 while ((currLine = br.readLine()) != null) {
 
-                    // Every few hundred milliseconds, tell the user what the program's status is.
-                    if (((int) System.currentTimeMillis() - lastAlertMessageTime) >= 2500) {
-                        System.out.println("\n\nNot finished yet!\nSo far, the program has found " + textsToInsert.size() + " messages that need to be backed up.\n\n");
-                        lastAlertMessageTime = (int) System.currentTimeMillis();
-                    }
-
-                    if (currLine != null && currLine.contains(" body=")) {  //If the line starts with " body=", then it is a line that contains a text message.
+                    if (currLine != null && currLine.contains("<sms protocol=")) {  //If the line starts with "<sms protocol=", then it is a line that contains a text message.
 
                         //Fetch the phone number that the message was sent/received to/from.
                         String phoneNumber = currLine.substring(currLine.indexOf("address=\"") + 9, currLine.indexOf("\" date"));
@@ -111,10 +104,11 @@ class TextMessagesBackup {
                             duplicates.put(key, c);
                         }
 
-                        boolean incoming = false;
+                        // Define sender and receiver phone numbers based on if the text was incoming or outgoing.
                         long senderPhoneNumber = phoneNumberLong;  // senderPhoneNumber - used only to check who sent a text message
+                        long recipientPhoneNumber = phoneNumberLong; // recipientPhoneNumber - used only to check who received the sms text message
                         if (currLine.contains("type=\"1\"")) {  // Text message was incoming.
-                            incoming = true;
+                            recipientPhoneNumber = myPhoneNumber;
                         } else { //Set my phone number as the phone number the message was sent from.
                             senderPhoneNumber = myPhoneNumber;
                         }
@@ -138,11 +132,12 @@ class TextMessagesBackup {
                         String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
                         messageQueue = fixSMSString(messageQueue);  // Replace certain characters in the string.
 
-                        SMSTextMessage smstm = new SMSTextMessage(myPhoneNumber, contactName, phoneNumberLong, incoming, timestamp, messageQueue);
+                        SMSTextMessage smstm = new SMSTextMessage(contactName, senderPhoneNumber, recipientPhoneNumber, timestamp, messageQueue);
 
                         // The text message does not exist in the database. Add it to the queue for insertion.
                         textsToInsert.add(smstm);
 
+                    } else {  // MMS text message (either a group message or a message that contains a picture). These texts occur over multiple lines, and are terminated by "</mms>" 
                     }
                 }
 

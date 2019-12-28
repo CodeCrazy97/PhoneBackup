@@ -11,7 +11,6 @@ public class TextMessage {
         this.senderPhoneNumber = senderPhoneNumber;
     }
 
-    
     public long getSenderPhoneNumber() {
         return senderPhoneNumber;
     }
@@ -19,7 +18,7 @@ public class TextMessage {
     public void setSenderPhoneNumber(long senderPhoneNumber) {
         this.senderPhoneNumber = senderPhoneNumber;
     }
-    
+
     public String getMessageText() {
         return messageText;
     }
@@ -35,5 +34,5 @@ public class TextMessage {
     public void setTimestamp(String timestamp) {
         this.timestamp = timestamp;
     }
-    
+
 }

@@ -5,17 +5,10 @@ public class SMSTextMessage extends TextMessage {
     private long recipientPhoneNumber;
     private boolean incoming;
 
-    public SMSTextMessage(long myPhoneNumber, String contactName, long phoneNumber, boolean incoming, String timestamp, String messageText) {
-        super(messageText, timestamp, phoneNumber);
+    public SMSTextMessage(String contactName, long senderPhoneNumber, long recipientPhoneNumber, String timestamp, String messageText) {
+        super(messageText, timestamp, senderPhoneNumber);
         this.contactName = contactName;
-        this.incoming = incoming;
-        if (incoming) { // Someone sent me the text message.
-            super.setSenderPhoneNumber(phoneNumber);
-            this.recipientPhoneNumber = myPhoneNumber;
-        } else {  // I sent the text message.
-            super.setSenderPhoneNumber(myPhoneNumber);
-            this.recipientPhoneNumber = phoneNumber;
-        }
+        this.recipientPhoneNumber = recipientPhoneNumber;
     }
 
     public long getRecipientPhoneNumber() {
