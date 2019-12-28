@@ -14,14 +14,14 @@ public class TESTIterateOverFile {
     public static void main(String[] args) throws FileNotFoundException {
         Scanner input = new Scanner(System.in);
 
-        /*
-        System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\test2.xml");
+        
+        System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\SMS September 25 2018.xml");
         
 
         TextMessagesBackup tmb = new TextMessagesBackup();
 
         System.out.println("Enter the path to the text messages XML file: ");
-        String textMessageXMLFile = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\test3.xml"; //input.nextLine();
+        String textMessageXMLFile = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\SMS September 25 2018.xml"; //input.nextLine();
         textMessageXMLFile = new MySQLMethods().fixFilePath(textMessageXMLFile);
         try {
             String[] args1 = {textMessageXMLFile};
@@ -30,13 +30,13 @@ public class TESTIterateOverFile {
             System.out.println("Exception trying to backup text messages: " + ex);
         }
         System.exit(0);
-         */
+         
         System.out.println("Enter the path to the file: ");
         //String path = input.nextLine();
         //path = new MySQLMethods().fixFilePath(path);
 
-        System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\SMS September 25 2018.xml");
-        String path = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\SMS September 25 2018.xml"; //input.nextLine();
+        System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\test2.xml");
+        String path = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\test2.xml"; //input.nextLine();
         path = new MySQLMethods().fixFilePath(path);
         System.out.println("Path: " + path);
 

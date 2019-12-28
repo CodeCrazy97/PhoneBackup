@@ -156,7 +156,7 @@ class MySQLMethods {
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT p.duration, DATE_FORMAT(p.call_timestamp, '%W %M %d, %Y'), c.person_name FROM phone_calls p JOIN (SELECT person_name, id FROM contacts) c ON c.id = p.sender_id ORDER BY p.duration DESC LIMIT 1;";
+            String query = "SELECT p.duration, DATE_FORMAT(p.call_timestamp, '%W %M %d, %Y'), c.person_name FROM phone_calls p JOIN (SELECT person_name, phone_number FROM contacts) c ON c.phone_number = p.phone_number ORDER BY p.duration DESC LIMIT 1;";
 
             st = conn.createStatement();
             rs = st.executeQuery(query);
@@ -184,7 +184,7 @@ class MySQLMethods {
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT date_format(msg_timestamp, '%Y-%c-%e %k:%i:%s') FROM text_messages WHERE sender_id = (SELECT id FROM contacts WHERE person_name = '" + c.getPersonName() + "' AND phone_number = " + c.getPhoneNumber() + ");";
+            String query = "SELECT date_format(msg_timestamp, '%Y-%c-%e %k:%i:%s') FROM text_messages WHERE sender_phone_num = " + c.getPhoneNumber() + ";";
 
             st = conn.createStatement();
             rs = st.executeQuery(query);
@@ -429,6 +429,83 @@ class MySQLMethods {
         }
     }
 
+    public static void addMyPhoneNumber(long myPhoneNumber) {
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            try {
+                Class.forName("com.mysql.jdbc.Driver");
+
+                String sql = "INSERT INTO contacts (phone_number, person_name) VALUES (" + myPhoneNumber + ", 'Me');";
+
+                PreparedStatement preparedStatement = conn.prepareStatement(sql);
+                preparedStatement.executeUpdate();
+                System.out.println(sql);
+                preparedStatement.close();
+            } catch (SQLException sqle) {
+                System.out.println("SQL Exception trying to insert my phone number into the database: " + sqle);
+            } catch (ClassNotFoundException cnfe) {
+                System.out.println("ClassNotFoundException trying to insert my phone number into the database: " + cnfe);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception adding my phone number to the database: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+    }
+
+    public static int getContactID(String personName, long phoneNumber) {
+        conn = new MySQLMethods().getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT id FROM contacts WHERE person_name = '" + personName + "' AND phone_number = " + phoneNumber + ";";
+
+            // create the java statement
+            st = conn.createStatement();
+            // execute the query, and get a java resultset
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to get a contact's ID: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+
+        // No contact existed with that name and/or phone number.
+        throw new Error("No contact existed with name = " + personName + " and/or phone number = " + phoneNumber + ".");
+    }
+
+    public static void updateContactName(Contact c) {
+        conn = new MySQLMethods().getConnection();
+        try {
+            // create the java mysql update preparedstatement
+            String query = "UPDATE contacts SET person_name = '" + c.getPersonName() + "' WHERE phone_number = " + c.getPhoneNumber() + ";";
+            PreparedStatement preparedStmt = conn.prepareStatement(query);
+
+            // execute the java preparedstatement
+            preparedStmt.executeUpdate();
+
+        } catch (Exception e) {
+            System.err.println("Exception trying to update a contact: " + e.getMessage());
+        } finally {
+            new MySQLMethods().closeConnection(conn);
+        }
+    }
+
     public static String getContactNameFromID(int id) {
         conn = new MySQLMethods().getConnection();
         try {
@@ -459,6 +536,64 @@ class MySQLMethods {
         return "" + id;
     }
 
+    public static long getMyPhoneNumber() {
+        conn = new MySQLMethods().getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            // get the id that points to the phone number in the contacts table
+            String query = "SELECT phone_number FROM contacts WHERE person_name = 'Me';";
+
+            // create the java statement
+            st = conn.createStatement();
+            // execute the query, and get a java resultset
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getLong(1);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception fetching your phone number from the database: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return -1;
+    }
+
+    public static int getLastCreatedID(long senderPhoneNumber, String timestamp) {
+        conn = new MySQLMethods().getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            // get the id that was last created during an insert statement
+            String query = "SELECT MAX(id) FROM text_messages WHERE sender_phone_num = " + senderPhoneNumber + " AND msg_timestamp = '" + timestamp + "';";
+
+            // create the java statement
+            st = conn.createStatement();
+            // execute the query, and get a java resultset
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception fetching last created id from the database: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return -1;
+    }
+
     public static LinkedList<TextMessage> getTextMessages() {
         LinkedList<TextMessage> textMessages = new LinkedList<TextMessage>();
         conn = new MySQLMethods().getConnection();
@@ -473,19 +608,15 @@ class MySQLMethods {
             // We want picture texts to appear last in the query results, because 
             // they appear last in the XML file created by SMS Backup & Restore.
             // (Putting them last in the query results will be more efficient.)
-            String query = "(SELECT t.msg_text, DATE_FORMAT(t.msg_timestamp, '%Y-%c-%e %k:%i:%s'), c.phone_number, c.person_name\n"
-                    + "FROM text_messages t\n"
-                    + "JOIN (SELECT person_name, phone_number, id\n"
-                    + "FROM contacts) c ON t.sender_id = c.id\n"
+            String query = "(SELECT msg_text, DATE_FORMAT(msg_timestamp, '%Y-%c-%e %k:%i:%s'), sender_phone_num\n"
+                    + "FROM text_messages\n"
                     + "WHERE msg_text NOT LIKE '[PICTURE]%'\n"
-                    + "ORDER BY t.msg_timestamp ASC)\n"
+                    + "ORDER BY msg_timestamp ASC)\n"
                     + "UNION ALL\n"
-                    + "(SELECT t.msg_text, DATE_FORMAT(t.msg_timestamp, '%Y-%c-%e %k:%i:%s'), c.phone_number, c.person_name\n"
-                    + "FROM text_messages t\n"
-                    + "JOIN (SELECT person_name, phone_number, id\n"
-                    + "FROM contacts) c ON t.sender_id = c.id\n"
-                    + "WHERE t.msg_text LIKE '[PICTURE]%'\n"
-                    + "ORDER BY t.msg_timestamp ASC);";
+                    + "(SELECT msg_text, DATE_FORMAT(msg_timestamp, '%Y-%c-%e %k:%i:%s'), sender_phone_num\n"
+                    + "FROM text_messages\n"
+                    + "WHERE msg_text LIKE '[PICTURE]%'\n"
+                    + "ORDER BY msg_timestamp ASC);";
 
             // create the java statement
             st = conn.createStatement();
@@ -494,7 +625,7 @@ class MySQLMethods {
 
             // iterate through the java resultset
             while (rs.next()) {
-                textMessages.add(new TextMessage(rs.getString(1), rs.getString(2), rs.getLong(3), rs.getString(4)));
+                textMessages.add(new TextMessage(rs.getString(1), rs.getString(2), rs.getLong(3)));
             }
         } catch (Exception e) {
             System.out.println("Exception fetching text messages from the database: " + e.getMessage());
@@ -539,16 +670,32 @@ class MySQLMethods {
         conn = getConnection();
         try {
             // create the java mysql update preparedstatement
-            String query = "UPDATE last_backup_timestamps SET backup_timestamp = NOW() WHERE backup_name = ?";
+            String query = "INSERT INTO last_backup_timestamps (backup_name, backup_timestamp) VALUES ('text messages', NOW());";
             PreparedStatement preparedStmt = conn.prepareStatement(query);
-            preparedStmt.setString(1, type);
 
             // execute the java preparedstatement
             preparedStmt.executeUpdate();
 
             conn.close();
         } catch (Exception e) {
-            System.err.println("Exception trying to update the backup timestamp: " + e.getMessage());
+            if (e.toString().contains("Duplicate entry 'text messages' for key 'PRIMARY'")) {
+                // Try updating instead of inserting.
+                try {
+                    // create the java mysql update preparedstatement
+                    String query = "UPDATE last_backup_timestamps SET backup_timestamp = NOW() WHERE backup_name = ?";
+                    PreparedStatement preparedStmt = conn.prepareStatement(query);
+                    preparedStmt.setString(1, type);
+
+                    // execute the java preparedstatement
+                    preparedStmt.executeUpdate();
+
+                    conn.close();
+                } catch (Exception e2) {
+                    System.err.println("Exception trying to update the backup timestamp: " + e.getMessage());
+                } finally {
+                    closeConnection(conn);
+                }
+            }
         } finally {
             closeConnection(conn);
         }
@@ -579,7 +726,7 @@ class MySQLMethods {
             // iterate through the java resultset
             while (rs.next()) {
                 Contact c = new Contact(rs.getLong(1), rs.getString(2));
-                oldContacts.put(c.getPersonName() + c.getPhoneNumber(), c);
+                oldContacts.put(c.getPhoneNumber() + c.getPersonName(), c);
             }
         } catch (Exception e) {
             System.out.println("Exception trying to get preexisting contacts: " + e);
@@ -588,7 +735,33 @@ class MySQLMethods {
             closeStatement(st);
             closeConnection(conn);
         }
-        System.out.println("Old contacts size: " + oldContacts.size());
         return oldContacts;
+    }
+
+    public static int contactExists(long phoneNumber) {
+        Map<String, Contact> oldContacts = new TreeMap<>();
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT OOUNT(*) FROM contacts WHERE phone_number = " + phoneNumber + ";";
+
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getInt(1);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to get preexisting contacts: " + e);
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return -1;
     }
 }

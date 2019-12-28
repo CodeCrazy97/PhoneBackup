@@ -1,5 +1,4 @@
 
-import com.mysql.jdbc.MySQLConnection;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -8,6 +7,7 @@ import java.io.IOException;
 import java.sql.*;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -41,17 +41,31 @@ class TextMessagesBackup {
         textMessages = new MySQLMethods().getTextMessages();
 
         // textsToInsert - the text messages that will need to be inserted into the database.
-        LinkedList<TextMessage> textsToInsert = new LinkedList<>();
+        LinkedList<SMSTextMessage> textsToInsert = new LinkedList<>();
 
         // xmlFileContacts - a map of all the contacts in the XML file that were texted and/or texts were received from.
         // databaseContacts - all the contacts stored in the database.
         // duplicates - all contacts that appear in both the xmlFileContacts and databaseContacts data structures.
         // 
-        // Since a contact is uniquely identified by the person_name and phone_number,
-        // these two things combined will be the keys into the below maps.
+        // The phone_number is the unique key that will identify each contact.
+        // The contact's name (person_name in the database) is the value in the below maps.
         Map<String, Contact> xmlFilecontacts = new TreeMap<>();
         Map<String, Contact> databaseContacts = new MySQLMethods().getContacts();
         Map<String, Contact> duplicates = new TreeMap<>();
+
+        // Fetch the user's phone number. If it doesn't exist, ask that they provide it.
+        long myPhoneNumber = new MySQLMethods().getMyPhoneNumber();
+        try {
+            if (myPhoneNumber == -1) {
+                System.out.println("It appears that you have not entered your phone number. Please enter your phone number, including the area code.");
+                Scanner input = new Scanner(System.in);
+                String myPhoneNumberStr = input.nextLine();
+                myPhoneNumber = fixPhoneNumber(myPhoneNumberStr);
+                new MySQLMethods().addMyPhoneNumber(myPhoneNumber);
+            }
+        } catch (Exception e) {
+            System.out.println("Something was wrong with the phone number you entered.");
+        }
 
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {  //Try reading from the text messages file.
             try {
@@ -82,7 +96,7 @@ class TextMessagesBackup {
                         String contactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.lastIndexOf("\""));
                         contactName = fixSMSString(contactName);
                         if (contactName.equals("(Unknown)")) {  // This message does not come from one of my contacts - use the phone number as a stand-in for the name of the contact.
-                            contactName = phoneNumber;
+                            contactName = "" + fixPhoneNumber(phoneNumber);
                         }
 
                         //Get the timestamp of when the message was sent
@@ -90,11 +104,19 @@ class TextMessagesBackup {
                         timestamp = new MySQLMethods().createSQLTimestamp(timestamp);
 
                         // Update the list of contacts.
+                        String key = phoneNumberLong + contactName;
                         Contact c = new Contact(phoneNumberLong, contactName);
-                        String key = c.getPersonName() + c.getPhoneNumber();
                         xmlFilecontacts.put(key, c);
-                        if (databaseContacts.containsKey(key)) { // This contact is already in the database.
+                        if (databaseContacts.containsKey(key)) { // This contact is already in the database. Add it to the duplicates.
                             duplicates.put(key, c);
+                        }
+
+                        boolean incoming = false;
+                        long senderPhoneNumber = phoneNumberLong;  // senderPhoneNumber - used only to check who sent a text message
+                        if (currLine.contains("type=\"1\"")) {  // Text message was incoming.
+                            incoming = true;
+                        } else { //Set my phone number as the phone number the message was sent from.
+                            senderPhoneNumber = myPhoneNumber;
                         }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -104,7 +126,7 @@ class TextMessagesBackup {
 /////////////is found, delete it from the list and skip the current message in XML file.
 //////////////////////////////////////////////////////////////////////////////////
                         try {
-                            if (messageExists(timestamp, contactName, phoneNumberLong)) {
+                            if (messageExists(timestamp, senderPhoneNumber)) {
                                 // This message already exists. Go to next text message in the XML file.
                                 continue;
                             }
@@ -116,12 +138,259 @@ class TextMessagesBackup {
                         String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
                         messageQueue = fixSMSString(messageQueue);  // Replace certain characters in the string.
 
+                        SMSTextMessage smstm = new SMSTextMessage(myPhoneNumber, contactName, phoneNumberLong, incoming, timestamp, messageQueue);
+
                         // The text message does not exist in the database. Add it to the queue for insertion.
-                        textsToInsert.add(new TextMessage(messageQueue, timestamp, phoneNumberLong, contactName));
+                        textsToInsert.add(smstm);
 
                     }
+                }
 
-                    /*
+                // Strip away duplicates so that we can see the different contact values between the database and the XML file. 
+                Set<Map.Entry<String, Contact>> entrySet3 = duplicates.entrySet();
+                for (Map.Entry<String, Contact> entry3 : entrySet3) {
+                    xmlFilecontacts.remove(entry3.getKey());
+                    databaseContacts.remove(entry3.getKey());
+                }
+
+                // Now, see if any of the "new" contacts are old contacts that were given a new name.
+                Set<Map.Entry<String, Contact>> entrySet4 = databaseContacts.entrySet();
+                for (Map.Entry<String, Contact> entry4 : entrySet4) {
+                    // If we find a contact with same phone number but different name in xmlFileContacts, then we just need to update the contact name.
+                    Set<Map.Entry<String, Contact>> entrySet5 = xmlFilecontacts.entrySet();
+                    for (Map.Entry<String, Contact> entry5 : entrySet5) {
+                        if (entry5.getValue().getPhoneNumber() == entry4.getValue().getPhoneNumber()) {
+                            new MySQLMethods().updateContactName(entry5.getValue());
+                            xmlFilecontacts.remove(entry5.getKey());
+                        }
+                    }
+                }
+
+                try {
+                    Class.forName("com.mysql.jdbc.Driver");
+                    try {
+                        conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
+                    } catch (Exception ex) {
+                        System.out.println("Exception: " + ex);
+                    }
+                    PreparedStatement preparedStatement = null;
+
+                    // Before inserting any text messages, add any new contacts discovered in the XML file to the database.
+                    Set<Map.Entry<String, Contact>> entrySet = xmlFilecontacts.entrySet();
+                    for (Map.Entry<String, Contact> entry : entrySet) {
+                        try {
+                            String sql = "INSERT INTO contacts (phone_number, person_name) VALUES (" + entry.getValue().getPhoneNumber() + ", '" + entry.getValue().getPersonName() + "'); ";
+
+                            preparedStatement = conn.prepareStatement(sql);
+                            preparedStatement.executeUpdate();
+                            System.out.println(sql);
+                        } catch (SQLException sqle) {
+                            throw sqle;
+                        }
+                    }
+                    if (xmlFilecontacts.size() > 0) {  // The prepared statement is most likely not null - attempt to close it.
+                        new MySQLMethods().closePreparedStatement(preparedStatement);
+                    }
+                } catch (ClassNotFoundException cnfe) {
+                    System.out.println("ClassNotFoundException: " + cnfe);
+                }
+
+                // Try to insert the text messages.
+                try {
+                    Class.forName("com.mysql.jdbc.Driver");
+                    try {
+                        conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
+                    } catch (Exception ex) {
+                        System.out.println("Exception trying to connect to database: " + ex);
+                    }
+                    PreparedStatement preparedStatement = null;
+                    for (int i = 0; i < textsToInsert.size(); i++) {
+
+                        String sql = "INSERT INTO text_messages (msg_text, sender_phone_num, msg_timestamp) VALUES ('" + textsToInsert.get(i).getMessageText() + "', " + textsToInsert.get(i).getSenderPhoneNumber() + ", '" + textsToInsert.get(i).getTimestamp() + "'); ";
+
+                        preparedStatement = conn.prepareStatement(sql);
+                        preparedStatement.executeUpdate();
+                        //System.out.println(sql);
+
+                        // Also need to insert the recipient of the text message into the text_message_recipients table
+                        String sql2 = "INSERT INTO text_message_recipients (contact_phone_num, text_message_id) VALUES (" + textsToInsert.get(i).getRecipientPhoneNumber() + ", (SELECT MAX(id) FROM text_messages WHERE sender_phone_num = " + textsToInsert.get(i).getSenderPhoneNumber() + " AND msg_timestamp = '" + textsToInsert.get(i).getTimestamp() + "')); ";
+                        preparedStatement = conn.prepareStatement(sql2);
+                        preparedStatement.executeUpdate();
+                        //System.out.println(sql2);
+                    }
+                    if (textsToInsert.size() > 0) { // The prepared statement is most likely not null - attempt to close it.
+                        new MySQLMethods().closePreparedStatement(preparedStatement);
+                    }
+                } catch (ClassNotFoundException e) {
+                    System.out.println("Exception trying to create Class.forName: " + e);
+                }
+
+                int endTimeMillis = (int) System.currentTimeMillis();
+                System.out.println("Finished backing up text messages! That took " + secondsFormatted((endTimeMillis - beginTimeMillis) / 1000) + ".");
+
+                // Try to update the timestamp for the text messages backup.
+                new MySQLMethods().updateBackup("text messages");
+            } catch (Exception e) {
+                System.out.println(e);
+            }
+        }
+    }
+
+    public static boolean phoneNumberExists(long phoneNumber) {
+        conn = new MySQLMethods().getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT COUNT(*) FROM contacts WHERE phone_number = " + phoneNumber + ";";
+
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                if (rs.getInt(1) > 0) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Exception checking if phone number exists: " + e);
+        } finally {
+            new MySQLMethods().closeResultSet(rs);
+            new MySQLMethods().closeStatement(st);
+            new MySQLMethods().closeConnection(conn);
+        }
+        return false;
+    }
+
+    // Some strange things happen to text messages when they are turned into XML!
+    // Below, I fix odd characters and turn them into what they should be.
+    public static String fixSMSString(String message) {
+        message = message.replace("&#55357;&#56832;", "â˜º");
+        message = message.replace("ï¿½", "\'");  //Replace all ï¿½ with apostraphes.
+        message = message.replace("&#10;", "\\n");  //Replace all &#10; with newline characters.
+        message = message.replace("\'", "\\'");
+        message = message.replace(" &#55357;&#56846", "\uD83D\uDE0E");
+        message = message.replace("&#55357;&#56397;&#55356;&#57339;", "\uD83D\uDC4D");
+        message = message.replace("&#55357;&#56837;", "\uD83D\uDE04");
+        message = message.replace("&#55357;&#56397;", "\uD83D\uDC4D");
+        message = message.replace("&amp;", "&");  //ampersand symbol
+        message = message.replace("&apos;", "\\'");  // single quote
+        return message;
+    }
+
+    public static boolean messageExists(String timestamp, long phoneNumber) {
+        for (int i = 0; i < textMessages.size(); i++) {
+            if (textMessages.get(i).getSenderPhoneNumber() == phoneNumber && textMessages.get(i).getTimestamp().equals(timestamp)) {
+                // Remove the text message from the linked list (this will shorten the linked list so that next time we search through it, there's not as much to look at).
+                textMessages.remove(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static String getContactName(String phoneNumber) {
+        conn = new MySQLMethods().getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT person_name FROM contacts WHERE phone_number = " + phoneNumber;
+            if (phoneNumber.length() >= 10) {
+                // Include an OR clause to check for the phone number without the area code (sometimes, I include contacts without their area code)
+                query += " OR phone_number = " + phoneNumber.substring(phoneNumber.length() - 7) + ";";
+            } else {
+                query += ";";
+            }
+
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                return rs.getString(1);
+            }
+
+        } catch (Exception e) {
+            System.out.println("Got an exception : " + e.getMessage());
+        } finally {
+            new MySQLMethods().closeResultSet(rs);
+            new MySQLMethods().closeStatement(st);
+            new MySQLMethods().closeConnection(conn);
+        }
+
+        // No contact existed with that phone number. So, just return the number itself.
+        return phoneNumber;
+    }
+
+    // secondsFormatted: converts seconds to hours, minutes, and seconds.
+    // For example: input 95 seconds would return "1 minute, 35 seconds"
+    public static String secondsFormatted(int seconds) {
+        if (seconds == 0) {  // Avoid further processing if there are zero seconds.
+            return "0 seconds";
+        }
+        try {
+            int minutes = seconds / 60;    // Extract minutes out of the seconds.
+            seconds %= 60;               // Make seconds less than 60.
+            int hours = minutes / 60;      // Extract hours out of seconds.
+            minutes %= 60;               // Make minutes less than 60. 
+
+            String hoursString = "";
+            String minutesString = "";
+            String secondsString = "";
+
+            if (hours > 0) {
+                if (hours == 1) {
+                    hoursString = hours + " hour, ";
+                } else {
+                    hoursString = hours + " hours, ";
+                }
+            }
+            if (minutes > 0) {
+                if (minutes == 1) {
+                    minutesString = minutes + " minute, ";
+                } else {
+                    minutesString = minutes + " minutes, ";
+                }
+            }
+            if (seconds > 0) {
+                if (seconds == 1) {
+                    secondsString = seconds + " second";
+                } else {
+                    secondsString = seconds + " seconds";
+                }
+            }
+            String duration = hoursString + minutesString + secondsString;  // Put the entire result in one string so we can check if a comma needs to be removed at the end.
+            if (duration.charAt(duration.length() - 2) == ',') {
+                return duration.substring(0, duration.length() - 2);
+            } else {
+                return duration;
+            }
+        } catch (Exception ex) {
+            System.out.println("Exception trying to format total time spent on the phone: " + ex);
+        }
+        return null;
+    }
+
+    // fixPhoneNumber: takes a string and strips characters typically found in a phone number so that the number becomes an integer.
+    public static long fixPhoneNumber(String phoneNumber) throws NumberFormatException {
+        phoneNumber = phoneNumber.replace("\\", "");
+        phoneNumber = phoneNumber.replace("-", "");
+        phoneNumber = phoneNumber.replace(" ", "");
+        phoneNumber = phoneNumber.replace(")", "");
+        phoneNumber = phoneNumber.replace("(", "");
+
+        // Try converting the phone number to an integer. If this cannot be done, then an error will be thrown.
+        return Long.parseLong(phoneNumber);
+    }
+}
+
+// BELOW WAS HOW MMS MESSAGES WERE HANDLED
+
+/*
                     else { // mms (occurs on multiple lines)
                         if (currLine.contains("type=\"151\"")) {  // The recipient of the mms message. If there are more than one recipients, then this is a group message.
                             String currentPhoneNumber = currLine.substring(currLine.indexOf("address=\"") + 9, currLine.indexOf("\" type="));
@@ -233,277 +502,4 @@ class TextMessagesBackup {
 
                         }
                     }
-                     */
-                }
-
-                // Strip away duplicates so that we can see the different contact values between the database and the XML file. 
-                Set<Map.Entry<String, Contact>> entrySet3 = duplicates.entrySet();
-                for (Map.Entry<String, Contact> entry3 : entrySet3) {
-                    xmlFilecontacts.remove(entry3.getKey());
-                    databaseContacts.remove(entry3.getKey());
-                }
-
-                // Now, see if any of the "new" contacts are old contacts that were given a new name.
-                Set<Map.Entry<String, Contact>> entrySet4 = databaseContacts.entrySet();
-                for (Map.Entry<String, Contact> entry4 : entrySet4) {
-                    // Find one timestamp from the database for a text message with this contact.
-                    String oneTimestamp = new MySQLMethods().getOneTimestamp(entry4.getValue());
-
-                    // If a timestamp was returned, then there must be a text message with that contact stored in the DB. See if we can the same text message in the textsToInsert linked list.
-                    if (oneTimestamp != null) {
-                        for (int i = 0; i < textsToInsert.size(); i++) {
-                            if (textsToInsert.get(i).getTimestamp().equals(oneTimestamp)) {  // Since these two texts contain the same timestamp, they must be from the same contact. Therefore, we can safely conclude that this contact's information was updated.
-                                updateContactName(entry4.getValue().getPersonName(), textsToInsert.get(i).getSenderName(), textsToInsert.get(i).getSenderPhoneNumber());
-                                xmlFilecontacts.remove(textsToInsert.get(i).getSenderName() + textsToInsert.get(i).getSenderPhoneNumber()); // Remove this contact from the list of contacts to insert below (attempting to insert this contact will cause an error because it already exists).
-                            }
-                        }
-                    }
-                }
-
-                try {
-                    Class.forName("com.mysql.jdbc.Driver");
-                    try {
-                        conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
-                    } catch (Exception ex) {
-                        System.out.println("Exception: " + ex);
-                    }
-                    PreparedStatement preparedStatement = null;
-
-                    // Before inserting any text messages, add any new contacts discovered in the XML file to the database.
-                    Set<Map.Entry<String, Contact>> entrySet = xmlFilecontacts.entrySet();
-                    for (Map.Entry<String, Contact> entry : entrySet) {
-                        try {
-                            String sql = "INSERT INTO contacts (phone_number, person_name) VALUES (" + entry.getValue().getPhoneNumber() + ", '" + entry.getValue().getPersonName() + "'); ";
-
-                            preparedStatement = conn.prepareStatement(sql);
-                            preparedStatement.executeUpdate();
-                            System.out.println(sql);
-                        } catch (SQLException sqle) {
-                            throw sqle;
-                        }
-                    }
-                    if (xmlFilecontacts.size() > 0) {  // The prepared statement is most likely not null - attempt to close it.
-                        new MySQLMethods().closePreparedStatement(preparedStatement);
-                    }
-                } catch (ClassNotFoundException cnfe) {
-                    System.out.println("ClassNotFoundException: " + cnfe);
-                }
-
-                // Try to insert the text messages.
-                try {
-                    Class.forName("com.mysql.jdbc.Driver");
-                    try {
-                        conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
-                    } catch (Exception ex) {
-                        System.out.println("Exception trying to connect to database: " + ex);
-                    }
-                    PreparedStatement preparedStatement = null;
-                    for (int i = 0; i < textsToInsert.size(); i++) {
-
-                        String sql = "INSERT INTO text_messages (msg_text, sender_id, msg_timestamp) VALUES ('" + textsToInsert.get(i).getMessageText() + "', (select id from contacts where phone_number = " + textsToInsert.get(i).getSenderPhoneNumber() + " and person_name = '" + textsToInsert.get(i).getSenderName() + "'), '" + textsToInsert.get(i).getTimestamp() + "'); ";
-
-                        preparedStatement = conn.prepareStatement(sql);
-                        preparedStatement.executeUpdate();
-                        System.out.println(sql);
-                    }
-                    if (textsToInsert.size() > 0) { // The prepared statement is most likely not null - attempt to close it.
-                        new MySQLMethods().closePreparedStatement(preparedStatement);
-                    }
-                } catch (ClassNotFoundException e) {
-                    System.out.println("Exception trying to create Class.forName: " + e);
-                }
-
-                int endTimeMillis = (int) System.currentTimeMillis();
-                System.out.println("Finished backing up text messages! That took " + secondsFormatted((endTimeMillis - beginTimeMillis) / 1000) + ".");
-
-                // Try to update the timestamp for the text messages backup.
-                new MySQLMethods().updateBackup("text messages");
-            } catch (Exception e) {
-                System.out.println(e);
-            }
-        }
-    }
-
-    public static boolean phoneNumberExists(long phoneNumber) {
-        conn = new MySQLMethods().getConnection();
-        try {
-            // create our mysql database connection
-            String myDriver = "org.gjt.mm.mysql.Driver";
-            Class.forName(myDriver);
-
-            String query = "SELECT COUNT(*) FROM contacts WHERE phone_number = " + phoneNumber + ";";
-
-            st = conn.createStatement();
-            rs = st.executeQuery(query);
-
-            // iterate through the java resultset
-            while (rs.next()) {
-                if (rs.getInt(1) > 0) {
-                    return true;
-                }
-            }
-        } catch (Exception e) {
-            System.out.println("Exception checking if phone number exists: " + e);
-        } finally {
-            new MySQLMethods().closeResultSet(rs);
-            new MySQLMethods().closeStatement(st);
-            new MySQLMethods().closeConnection(conn);
-        }
-        return false;
-    }
-
-    public static void updateContactName(String oldPersonName, String personName, long phoneNumber) {
-        conn = new MySQLMethods().getConnection();
-        try {
-            // create the java mysql update preparedstatement
-            String query = "UPDATE contacts SET person_name = '" + personName + "' WHERE person_name = '" + oldPersonName + "' AND phone_number = '" + phoneNumber + "';";
-            PreparedStatement preparedStmt = conn.prepareStatement(query);
-
-            // execute the java preparedstatement
-            preparedStmt.executeUpdate();
-
-        } catch (Exception e) {
-            System.err.println("Exception trying to update a contact: " + e.getMessage());
-        } finally {
-            // Now, after the contact has been updated, delete text messages for that contact (since you don't want there to be duplicated text messages sent/received to/from him/her).
-            // This is necessary because the textsToInsert linked list will insert old texts that were already in the database (the database contains text messages from the contact before his/her name was updated).
-            try {
-                // create the java mysql update preparedstatement
-                String query = "DELETE FROM text_messages WHERE sender_id = (SELECT id FROM contacts WHERE person_name = '" + personName + "' AND phone_number = " + phoneNumber + ");";
-                PreparedStatement preparedStmt = conn.prepareStatement(query);
-
-                // execute the java preparedstatement
-                preparedStmt.executeUpdate();
-
-                new MySQLMethods().closePreparedStatement(preparedStmt);
-            } catch (Exception e) {
-                System.err.println("Exception trying to update a contact: " + e.getMessage());
-            } finally {
-                new MySQLMethods().closeConnection(conn);
-            }
-        }
-    }
-
-    // Some strange things happen to text messages when they are turned into XML!
-    // Below, I fix odd characters and turn them into what they should be.
-    public static String fixSMSString(String message) {
-        message = message.replace("&#55357;&#56832;", "â˜º");
-        message = message.replace("ï¿½", "\'");  //Replace all ï¿½ with apostraphes.
-        message = message.replace("&#10;", "\\n");  //Replace all &#10; with newline characters.
-        message = message.replace("\'", "\\'");
-        message = message.replace(" &#55357;&#56846", "\uD83D\uDE0E");
-        message = message.replace("&#55357;&#56397;&#55356;&#57339;", "\uD83D\uDC4D");
-        message = message.replace("&#55357;&#56837;", "\uD83D\uDE04");
-        message = message.replace("&#55357;&#56397;", "\uD83D\uDC4D");
-        message = message.replace("&amp;", "&");  //ampersand symbol
-        message = message.replace("&apos;", "\\'");  // single quote
-        return message;
-    }
-
-    public static boolean messageExists(String timestamp, String contactName, long phoneNumber) {
-        for (int i = 0; i < textMessages.size(); i++) {
-            if (textMessages.get(i).getSenderName().equals(contactName) && textMessages.get(i).getSenderPhoneNumber() == phoneNumber && textMessages.get(i).getTimestamp().equals(timestamp)) {
-                // Remove the text message from the linked list (this will shorten the linked list so that next time we search through it, there's not as much to look at).
-                textMessages.remove(i);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public static String getContactName(String phoneNumber) {
-        conn = new MySQLMethods().getConnection();
-        try {
-            // create our mysql database connection
-            String myDriver = "org.gjt.mm.mysql.Driver";
-            Class.forName(myDriver);
-
-            String query = "SELECT person_name FROM contacts WHERE phone_number = " + phoneNumber;
-            if (phoneNumber.length() >= 10) {
-                // Include an OR clause to check for the phone number without the area code (sometimes, I include contacts without their area code)
-                query += " OR phone_number = " + phoneNumber.substring(phoneNumber.length() - 7) + ";";
-            } else {
-                query += ";";
-            }
-
-            st = conn.createStatement();
-            rs = st.executeQuery(query);
-
-            // iterate through the java resultset
-            while (rs.next()) {
-                return rs.getString(1);
-            }
-
-        } catch (Exception e) {
-            System.out.println("Got an exception : " + e.getMessage());
-        } finally {
-            new MySQLMethods().closeResultSet(rs);
-            new MySQLMethods().closeStatement(st);
-            new MySQLMethods().closeConnection(conn);
-        }
-
-        // No contact existed with that phone number. So, just return the number itself.
-        return phoneNumber;
-    }
-
-    // secondsFormatted: converts seconds to hours, minutes, and seconds.
-    // For example: input 95 seconds would return "1 minute, 35 seconds"
-    public static String secondsFormatted(int seconds) {
-        if (seconds == 0) {  // Avoid further processing if there are zero seconds.
-            return "0 seconds";
-        }
-        try {
-            int minutes = seconds / 60;    // Extract minutes out of the seconds.
-            seconds %= 60;               // Make seconds less than 60.
-            int hours = minutes / 60;      // Extract hours out of seconds.
-            minutes %= 60;               // Make minutes less than 60. 
-
-            String hoursString = "";
-            String minutesString = "";
-            String secondsString = "";
-
-            if (hours > 0) {
-                if (hours == 1) {
-                    hoursString = hours + " hour, ";
-                } else {
-                    hoursString = hours + " hours, ";
-                }
-            }
-            if (minutes > 0) {
-                if (minutes == 1) {
-                    minutesString = minutes + " minute, ";
-                } else {
-                    minutesString = minutes + " minutes, ";
-                }
-            }
-            if (seconds > 0) {
-                if (seconds == 1) {
-                    secondsString = seconds + " second";
-                } else {
-                    secondsString = seconds + " seconds";
-                }
-            }
-            String duration = hoursString + minutesString + secondsString;  // Put the entire result in one string so we can check if a comma needs to be removed at the end.
-            if (duration.charAt(duration.length() - 2) == ',') {
-                return duration.substring(0, duration.length() - 2);
-            } else {
-                return duration;
-            }
-        } catch (Exception ex) {
-            System.out.println("Exception trying to format total time spent on the phone: " + ex);
-        }
-        return null;
-    }
-
-    // fixPhoneNumber: takes a string and strips characters typically found in a phone number so that the number becomes an integer.
-    public static long fixPhoneNumber(String phoneNumber) throws NumberFormatException {
-        phoneNumber = phoneNumber.replace("\\", "");
-        phoneNumber = phoneNumber.replace("-", "");
-        phoneNumber = phoneNumber.replace(" ", "");
-        phoneNumber = phoneNumber.replace(")", "");
-        phoneNumber = phoneNumber.replace("(", "");
-
-        // Try converting the phone number to an integer. If this cannot be done, then an error will be thrown.
-        return Long.parseLong(phoneNumber);
-    }
-}
+ */
