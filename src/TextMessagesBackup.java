@@ -167,62 +167,40 @@ class TextMessagesBackup {
                 }
 
                 try {
-                    Class.forName("com.mysql.jdbc.Driver");
-                    try {
-                        conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
-                    } catch (Exception ex) {
-                        System.out.println("Exception: " + ex);
-                    }
-                    PreparedStatement preparedStatement = null;
-
                     // Before inserting any text messages, add any new contacts discovered in the XML file to the database.
-                    Set<Map.Entry<String, Contact>> entrySet = xmlFilecontacts.entrySet();
-                    for (Map.Entry<String, Contact> entry : entrySet) {
-                        try {
-                            String sql = "INSERT INTO contacts (phone_number, person_name) VALUES (" + entry.getValue().getPhoneNumber() + ", '" + entry.getValue().getPersonName() + "'); ";
-
-                            preparedStatement = conn.prepareStatement(sql);
-                            preparedStatement.executeUpdate();
-                            System.out.println(sql);
-                        } catch (SQLException sqle) {
-                            throw sqle;
+                    if (xmlFilecontacts.size() > 0) {
+                        Set<Map.Entry<String, Contact>> entrySet = xmlFilecontacts.entrySet();
+                        String sql = "INSERT INTO contacts (phone_number, person_name) VALUES ";
+                        for (Map.Entry<String, Contact> entry : entrySet) {
+                            // Create the multiple insert string.
+                            // (Using a batch insert instead of creating a single
+                            // insert for each contact will improve performance.)
+                            sql += "(" + entry.getValue().getPhoneNumber() + ", '" + entry.getValue().getPersonName() + "'), ";
                         }
+
+                        // Chop of the last comma, replace it with a semicolon.
+                        sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
+
+                        new MySQLMethods().executeSQL(sql);
                     }
-                    if (xmlFilecontacts.size() > 0) {  // The prepared statement is most likely not null - attempt to close it.
-                        new MySQLMethods().closePreparedStatement(preparedStatement);
-                    }
-                } catch (ClassNotFoundException cnfe) {
-                    System.out.println("ClassNotFoundException: " + cnfe);
+                } catch (Exception e) {
+                    System.out.println("Exception trying to create the multiple inserts for contacts: " + e);
                 }
 
                 // Try to insert the text messages.
                 try {
-                    Class.forName("com.mysql.jdbc.Driver");
-                    try {
-                        conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
-                    } catch (Exception ex) {
-                        System.out.println("Exception trying to connect to database: " + ex);
-                    }
-                    PreparedStatement preparedStatement = null;
-                    for (int i = 0; i < textsToInsert.size(); i++) {
+                    if (textsToInsert.size() > 0) {
+                        String sql = "INSERT INTO text_messages (msg_text, sender_phone_num, msg_timestamp) VALUES ";
+                        for (int i = 0; i < textsToInsert.size(); i++) {
+                            sql += "('" + textsToInsert.get(i).getMessageText() + "', " + textsToInsert.get(i).getSenderPhoneNumber() + ", '" + textsToInsert.get(i).getTimestamp() + "'), ";
+                        }
+                        // Chop of the last comma, replace it with a semicolon.
+                        sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
 
-                        String sql = "INSERT INTO text_messages (msg_text, sender_phone_num, msg_timestamp) VALUES ('" + textsToInsert.get(i).getMessageText() + "', " + textsToInsert.get(i).getSenderPhoneNumber() + ", '" + textsToInsert.get(i).getTimestamp() + "'); ";
-
-                        preparedStatement = conn.prepareStatement(sql);
-                        preparedStatement.executeUpdate();
-                        //System.out.println(sql);
-
-                        // Also need to insert the recipient of the text message into the text_message_recipients table
-                        String sql2 = "INSERT INTO text_message_recipients (contact_phone_num, text_message_id) VALUES (" + textsToInsert.get(i).getRecipientPhoneNumber() + ", (SELECT MAX(id) FROM text_messages WHERE sender_phone_num = " + textsToInsert.get(i).getSenderPhoneNumber() + " AND msg_timestamp = '" + textsToInsert.get(i).getTimestamp() + "')); ";
-                        preparedStatement = conn.prepareStatement(sql2);
-                        preparedStatement.executeUpdate();
-                        //System.out.println(sql2);
+                        new MySQLMethods().executeSQL(sql);
                     }
-                    if (textsToInsert.size() > 0) { // The prepared statement is most likely not null - attempt to close it.
-                        new MySQLMethods().closePreparedStatement(preparedStatement);
-                    }
-                } catch (ClassNotFoundException e) {
-                    System.out.println("Exception trying to create Class.forName: " + e);
+                } catch (Exception e) {
+                    System.out.println("Exception trying to create multiple inserts for text messages: " + e);
                 }
 
                 int endTimeMillis = (int) System.currentTimeMillis();

@@ -664,14 +664,45 @@ class MySQLMethods {
         return null;
     }
 
+    // The below method executes an sql statement (originally intended to execute
+    // insert statements, but may be able to handle other types of statements).
+    public static void executeSQL(String sql) {
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            try {
+                Class.forName("com.mysql.jdbc.Driver");
+
+                PreparedStatement preparedStatement = conn.prepareStatement(sql);
+                preparedStatement.executeUpdate();
+                System.out.println(sql);
+                preparedStatement.close();
+            } catch (SQLException sqle) {
+                System.out.println("SQL Exception trying to insert my phone number into the database: " + sqle);
+            } catch (ClassNotFoundException cnfe) {
+                System.out.println("ClassNotFoundException trying to insert my phone number into the database: " + cnfe);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception adding my phone number to the database: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+    }
+
     // updateBackup - updates the timestamp for when text messages or phone calls were backed up.
     // type determines whether it is the timestamp for texts or calls that we're updating.
     public static void updateBackup(String type) {
         conn = getConnection();
         try {
             // create the java mysql update preparedstatement
-            String query = "INSERT INTO last_backup_timestamps (backup_name, backup_timestamp) VALUES ('text messages', NOW());";
+            String query = "INSERT INTO last_backup_timestamps (backup_name, backup_timestamp) VALUES (?, NOW());";
             PreparedStatement preparedStmt = conn.prepareStatement(query);
+            preparedStmt.setString(1, type);
 
             // execute the java preparedstatement
             preparedStmt.executeUpdate();
@@ -736,32 +767,5 @@ class MySQLMethods {
             closeConnection(conn);
         }
         return oldContacts;
-    }
-
-    public static int contactExists(long phoneNumber) {
-        Map<String, Contact> oldContacts = new TreeMap<>();
-        conn = getConnection();
-        try {
-            // create our mysql database connection
-            String myDriver = "org.gjt.mm.mysql.Driver";
-            Class.forName(myDriver);
-
-            String query = "SELECT OOUNT(*) FROM contacts WHERE phone_number = " + phoneNumber + ";";
-
-            st = conn.createStatement();
-            rs = st.executeQuery(query);
-
-            // iterate through the java resultset
-            while (rs.next()) {
-                return rs.getInt(1);
-            }
-        } catch (Exception e) {
-            System.out.println("Exception trying to get preexisting contacts: " + e);
-        } finally {
-            closeResultSet(rs);
-            closeStatement(st);
-            closeConnection(conn);
-        }
-        return -1;
     }
 }
