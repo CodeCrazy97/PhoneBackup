@@ -603,19 +603,18 @@ class MySQLMethods {
             Class.forName(myDriver);
 
             // Fetch all the text messages from the database, sorting them first
-            // according to if they start with '[PICTURE]'  (this means it is a 
-            // text message containing a picture) and second according to msg_timestamp.
+            // according to if they contain a picture (text_only = 1) and second according to msg_timestamp.
             // We want picture texts to appear last in the query results, because 
             // they appear last in the XML file created by SMS Backup & Restore.
             // (Putting them last in the query results will be more efficient.)
             String query = "(SELECT msg_text, DATE_FORMAT(msg_timestamp, '%Y-%c-%e %k:%i:%s'), sender_phone_num\n"
                     + "FROM text_messages\n"
-                    + "WHERE msg_text NOT LIKE '[PICTURE]%'\n"
+                    + "WHERE text_only = 1\n"
                     + "ORDER BY msg_timestamp ASC)\n"
                     + "UNION ALL\n"
                     + "(SELECT msg_text, DATE_FORMAT(msg_timestamp, '%Y-%c-%e %k:%i:%s'), sender_phone_num\n"
                     + "FROM text_messages\n"
-                    + "WHERE msg_text LIKE '[PICTURE]%'\n"
+                    + "WHERE text_only = 0\n"
                     + "ORDER BY msg_timestamp ASC);";
 
             // create the java statement
@@ -681,7 +680,7 @@ class MySQLMethods {
                 System.out.println(sql);
                 preparedStatement.close();
             } catch (SQLException sqle) {
-                System.out.println("SQL Exception trying to insert my phone number into the database: " + sqle);
+                System.out.println("SQL Exception: " + sqle);
             } catch (ClassNotFoundException cnfe) {
                 System.out.println("ClassNotFoundException trying to insert my phone number into the database: " + cnfe);
             }
@@ -767,5 +766,33 @@ class MySQLMethods {
             closeConnection(conn);
         }
         return oldContacts;
+    }
+
+    public static Map<Long, Long> getPhoneNumbers() {
+        Map<Long, Long> phoneNumbers = new TreeMap<>();
+        conn = getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            String query = "SELECT phone_number FROM contacts;";
+
+            st = conn.createStatement();
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                long phoneNumber = rs.getLong(1);
+                phoneNumbers.put(phoneNumber, phoneNumber);
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to get preexisting contacts: " + e);
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return phoneNumbers;
     }
 }

@@ -16,7 +16,7 @@ class TextMessagesBackup {
     static Connection conn = null;
     static ResultSet rs = null;
     static Statement st = null;
-    static LinkedList<TextMessage> textMessages;
+    static LinkedList<TextMessage> databaseTextMessages;
 
     public static void main(String[] args) throws IOException, SQLException {
 
@@ -38,10 +38,7 @@ class TextMessagesBackup {
 
         // Get all the text messages, place them into a linked list. 
         // Will be used to check if texts already exist.
-        textMessages = new MySQLMethods().getTextMessages();
-
-        // textsToInsert - the text messages that will need to be inserted into the database.
-        LinkedList<SMSTextMessage> textsToInsert = new LinkedList<>();
+        databaseTextMessages = new MySQLMethods().getTextMessages();
 
         // xmlFileContacts - a map of all the contacts in the XML file that were texted and/or texts were received from.
         // databaseContacts - all the contacts stored in the database.
@@ -77,6 +74,29 @@ class TextMessagesBackup {
                 System.out.println("Getting ready to backup text messages. This may take a few minutes.");
 
                 int beginTimeMillis = (int) System.currentTimeMillis();
+
+                // smsTextsToInsert - the sms text messages that will need to be inserted into the database.
+                LinkedList<SMSTextMessage> smsTextsToInsert = new LinkedList<>();
+
+                // mmsTextsToInsert - the mms text messages that will need to be inserted into the database.
+                LinkedList<MMSTextMessage> mmsTextsToInsert = new LinkedList<>();
+
+                // currMMSTextMessage - the current MMS text message being created.
+                // (This is needed since MMS texts span multiple lines.)
+                MMSTextMessage currMMSTextMessage = null;
+
+                boolean mmsIncoming = true;
+
+                long mmsPhoneNumber = -1;
+                long mmsSenderPhoneNumber = -1;
+                String mmsTimestamp = null;
+                String mmsContactName = null;
+                String mmsMessageText = null;
+                boolean mmsContainsPicture = false;
+                Map<Long, Long> allMMSRecipientPhoneNumbers = new TreeMap<>();
+                LinkedList<Long> mmsRecipients = new LinkedList<>();
+                boolean skipMMS = false; // Determines if program should skip certain mms messages.
+
                 while ((currLine = br.readLine()) != null) {
 
                     if (currLine != null && currLine.contains("<sms protocol=")) {  //If the line starts with "<sms protocol=", then it is a line that contains a text message.
@@ -132,12 +152,92 @@ class TextMessagesBackup {
                         String messageQueue = currLine.substring(currLine.indexOf(" body=") + 7, currLine.indexOf("toa=\"") - 2);
                         messageQueue = fixSMSString(messageQueue);  // Replace certain characters in the string.
 
-                        SMSTextMessage smstm = new SMSTextMessage(contactName, senderPhoneNumber, recipientPhoneNumber, timestamp, messageQueue);
+                        SMSTextMessage smstm = new SMSTextMessage(senderPhoneNumber, recipientPhoneNumber, timestamp, messageQueue);
 
                         // The text message does not exist in the database. Add it to the queue for insertion.
-                        textsToInsert.add(smstm);
+                        smsTextsToInsert.add(smstm);
 
-                    } else {  // MMS text message (either a group message or a message that contains a picture). These texts occur over multiple lines, and are terminated by "</mms>" 
+                    } else if (currLine.contains("<mms ")) {  // MMS text message (either a group message or a message that contains a picture). These texts occur over multiple lines, and are terminated by "</mms>"
+
+                        // Clear any variables from previous MMS message.
+                        mmsContactName = null;
+                        mmsMessageText = null;
+                        mmsPhoneNumber = -1;
+                        mmsRecipients.clear();
+                        mmsSenderPhoneNumber = -1;
+                        mmsTimestamp = null;
+
+                        // First line of the mms message - assume we should NOT skip it.
+                        skipMMS = false;
+
+                        // Figure out if the message contained an image.
+                        if (currLine.contains("<mms text_only=\"1\"")) {  // Does not contain a picture.
+                            mmsContainsPicture = false;
+                        } else {
+                            mmsContainsPicture = true;
+                        }
+
+                        // Get phone number.
+                        int indexOfPhoneNumberClosingQuotes = getClosingQuotes(currLine, "address=\"");
+                        mmsPhoneNumber = fixPhoneNumber(currLine.substring(currLine.indexOf("address=\"") + 9, indexOfPhoneNumberClosingQuotes));
+
+                        // Figure out if the message was incoming or outgoing.
+                        if (currLine.contains("msg_box=\"1\"")) { // Incoming message.
+                            mmsIncoming = true;
+                            mmsSenderPhoneNumber = mmsPhoneNumber;
+                        } else {  // Outgoing message.
+                            mmsIncoming = false;
+                            mmsSenderPhoneNumber = myPhoneNumber;
+                        }
+
+                        // Get the contact name.
+                        int indexOfContactNameClosingQuotes = getClosingQuotes(currLine, "contact_name=\"");
+                        mmsContactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, indexOfContactNameClosingQuotes);
+                        mmsContactName = fixSMSString(mmsContactName);
+
+                        // Get message timestamp and text.
+                        int indexOfTimestampClosingQuotes = getClosingQuotes(currLine, "readable_date=\"");
+                        mmsTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, indexOfTimestampClosingQuotes);
+                        mmsTimestamp = new MySQLMethods().createSQLTimestamp(mmsTimestamp);
+
+                        // Update the list of contacts.
+                        String key = mmsPhoneNumber + mmsContactName;
+                        Contact c = new Contact(mmsPhoneNumber, mmsContactName);
+                        xmlFilecontacts.put(key, c);
+                        if (databaseContacts.containsKey(key)) { // This contact is already in the database. Add it to the duplicates.
+                            duplicates.put(key, c);
+                        }
+
+                        // Check if the MMS message already exists. If so, then no need to collect other variables related to it.
+                        try {
+                            if (messageExists(mmsTimestamp, mmsSenderPhoneNumber)) {
+                                skipMMS = true;
+
+                                // This message already exists. Go to next mms text message in the XML file.
+                                continue;
+                            }
+                        } catch (Exception ex) {
+                            System.out.println("Exception trying to check if a text message exists: " + ex);
+                        }
+
+                    } else if (!skipMMS && currLine.contains("ct=\"text/plain\"")) { // This line contains a text message.
+                        int indexOfMessageClosingQuotes = getClosingQuotes(currLine, "text=\"");
+                        mmsMessageText = currLine.substring(currLine.indexOf("text=\"") + 6, indexOfMessageClosingQuotes);
+                        mmsMessageText = fixSMSString(mmsMessageText);
+                    } else if (!skipMMS && currLine.contains("<addr address=\"") && currLine.contains("type=\"151\"")) {
+                        // Fetch the recipient's phone number.
+                        int indexOfPhoneNumberClosingQuotes = getClosingQuotes(currLine, "<addr address=\"");
+                        long phoneNumber = Long.parseLong(currLine.substring(currLine.indexOf("<addr address=\"") + 15, indexOfPhoneNumberClosingQuotes));
+                        mmsRecipients.add(phoneNumber);
+                        allMMSRecipientPhoneNumbers.put(phoneNumber, phoneNumber);
+                    } else if (!skipMMS && currLine.contains("</mms>")) { //End of the MMS
+                        // Create a new instance of MMS text message class.
+                        if (mmsContactName != null && mmsSenderPhoneNumber != -1 && mmsTimestamp != null) {
+                            Long[] dereferencedMMSRecipients = mmsRecipients.toArray(new Long[mmsRecipients.size()]); // Copy recipients over to an array (cannot directly pass the linked list).
+                            mmsTextsToInsert.add(new MMSTextMessage(mmsSenderPhoneNumber, mmsTimestamp, mmsMessageText, mmsContainsPicture, dereferencedMMSRecipients));
+                        } else {
+                            throw new Error("Something is wrong with the mms message. A variable is null.");
+                        }
                     }
                 }
 
@@ -176,23 +276,91 @@ class TextMessagesBackup {
                         // Chop of the last comma, replace it with a semicolon.
                         sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
 
+                        System.out.println(sql);
+
                         new MySQLMethods().executeSQL(sql);
                     }
                 } catch (Exception e) {
                     System.out.println("Exception trying to create the multiple inserts for contacts: " + e);
                 }
 
-                // Try to insert the text messages.
+                // Now, loop over all the recipient phone numbers that appeared in the mms text messages. See if any are not in the database. Add them if they aren't.
+                Map<Long, Long> phoneNumbers = new MySQLMethods().getPhoneNumbers();
                 try {
-                    if (textsToInsert.size() > 0) {
-                        String sql = "INSERT INTO text_messages (msg_text, sender_phone_num, msg_timestamp) VALUES ";
-                        for (int i = 0; i < textsToInsert.size(); i++) {
-                            sql += "('" + textsToInsert.get(i).getMessageText() + "', " + textsToInsert.get(i).getSenderPhoneNumber() + ", '" + textsToInsert.get(i).getTimestamp() + "'), ";
+                    if (allMMSRecipientPhoneNumbers.size() > 0) {
+                        Set<Map.Entry<Long, Long>> entrySet = allMMSRecipientPhoneNumbers.entrySet();
+                        String sql = "INSERT INTO contacts (phone_number, person_name) VALUES ";
+                        for (Map.Entry<Long, Long> entry : entrySet) {
+                            if (!phoneNumbers.containsKey(entry.getKey())) {  // This phone number did not exist in the database.
+                                sql += "(" + entry.getKey() + ", '" + entry.getKey() + "'), ";
+                            }
                         }
+
                         // Chop of the last comma, replace it with a semicolon.
                         sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
 
+                        System.out.println(sql);
+
+                        if (sql.contains("'")) { // The sql statement has something to insert.
+                            new MySQLMethods().executeSQL(sql);
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println("Exception trying to add MMS recipient(s) to the database: " + e);
+                }
+
+                // Try to insert the text messages.
+                try {
+                    if (smsTextsToInsert.size() > 0) {
+
+                        String sql = "INSERT INTO text_messages (msg_text, sender_phone_num, msg_timestamp, text_only) VALUES ";
+                        String sqlRecipients = "INSERT INTO text_message_recipients (contact_phone_num, text_message_id) VALUES ";
+                        for (int i = 0; i < smsTextsToInsert.size(); i++) {
+                            sql += "('" + smsTextsToInsert.get(i).getMessageText() + "', " + smsTextsToInsert.get(i).getSenderPhoneNumber() + ", '" + smsTextsToInsert.get(i).getTimestamp() + "', 1), ";
+                            // Create a recipient for the text message.
+                            sqlRecipients += "(" + smsTextsToInsert.get(i).getRecipientPhoneNumber() + ", (SELECT MAX(id) FROM text_messages WHERE sender_phone_num = " + smsTextsToInsert.get(i).getSenderPhoneNumber() + " AND msg_timestamp = '" + smsTextsToInsert.get(i).getTimestamp() + "')), ";
+                        }
+
+                        // Chop of the last comma, replace it with a semicolon.
+                        sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
+                        sqlRecipients = sqlRecipients.substring(0, sqlRecipients.lastIndexOf(",")) + ";";
+
+                        System.out.println(sql);
+                        System.out.println(sqlRecipients);
+
                         new MySQLMethods().executeSQL(sql);
+                        new MySQLMethods().executeSQL(sqlRecipients);
+                    }
+                } catch (Exception e) {
+                    System.out.println("Exception trying to create multiple inserts for text messages: " + e);
+                }
+
+                // Insert the MMS text messages into the database.
+                try {
+                    if (mmsTextsToInsert.size() > 0) {
+                        String sqlTextMessages = "INSERT INTO text_messages (msg_text, sender_phone_num, msg_timestamp, text_only) VALUES ";
+                        String sqlTextMessageRecipients = "INSERT INTO text_message_recipients (contact_phone_num, text_message_id) VALUES ";
+                        for (int i = 0; i < mmsTextsToInsert.size(); i++) {
+                            if (mmsTextsToInsert.get(i).containsPicture()) {
+                                sqlTextMessages += "('" + mmsTextsToInsert.get(i).getMessageText() + "', " + mmsTextsToInsert.get(i).getSenderPhoneNumber() + ", '" + mmsTextsToInsert.get(i).getTimestamp() + "', 0), ";
+                            } else {
+                                sqlTextMessages += "('" + mmsTextsToInsert.get(i).getMessageText() + "', " + mmsTextsToInsert.get(i).getSenderPhoneNumber() + ", '" + mmsTextsToInsert.get(i).getTimestamp() + "', 1), ";
+                            }
+                            // Loop over recipients.
+                            Long[] recipients = mmsTextsToInsert.get(i).getRecipients();
+                            for (int j = 0; j < recipients.length; j++) {
+                                sqlTextMessageRecipients += "(" + recipients[j] + ", (SELECT MAX(id) FROM text_messages WHERE sender_phone_num = " + mmsTextsToInsert.get(i).getSenderPhoneNumber() + " AND msg_timestamp = '" + mmsTextsToInsert.get(i).getTimestamp() + "')), ";
+                            }
+                        }
+                        // Chop of the last comma, replace it with a semicolon.
+                        sqlTextMessages = sqlTextMessages.substring(0, sqlTextMessages.lastIndexOf(",")) + ";";
+                        sqlTextMessageRecipients = sqlTextMessageRecipients.substring(0, sqlTextMessageRecipients.lastIndexOf(",")) + ";";
+
+                        System.out.println(sqlTextMessages);
+                        System.out.println(sqlTextMessageRecipients);
+
+                        new MySQLMethods().executeSQL(sqlTextMessages);
+                        new MySQLMethods().executeSQL(sqlTextMessageRecipients);
                     }
                 } catch (Exception e) {
                     System.out.println("Exception trying to create multiple inserts for text messages: " + e);
@@ -207,6 +375,14 @@ class TextMessagesBackup {
                 System.out.println(e);
             }
         }
+    }
+
+    public static int getClosingQuotes(String bigStr, String beginString) {
+        int indexOfClosingQuotes = bigStr.indexOf(beginString) + beginString.length();
+        while (bigStr.charAt(indexOfClosingQuotes) != '\"') {
+            indexOfClosingQuotes++;
+        }
+        return indexOfClosingQuotes;
     }
 
     public static boolean phoneNumberExists(long phoneNumber) {
@@ -254,10 +430,10 @@ class TextMessagesBackup {
     }
 
     public static boolean messageExists(String timestamp, long phoneNumber) {
-        for (int i = 0; i < textMessages.size(); i++) {
-            if (textMessages.get(i).getSenderPhoneNumber() == phoneNumber && textMessages.get(i).getTimestamp().equals(timestamp)) {
+        for (int i = 0; i < databaseTextMessages.size(); i++) {
+            if (databaseTextMessages.get(i).getSenderPhoneNumber() == phoneNumber && databaseTextMessages.get(i).getTimestamp().equals(timestamp)) {
                 // Remove the text message from the linked list (this will shorten the linked list so that next time we search through it, there's not as much to look at).
-                textMessages.remove(i);
+                databaseTextMessages.remove(i);
                 return true;
             }
         }
@@ -360,119 +536,3 @@ class TextMessagesBackup {
         return Long.parseLong(phoneNumber);
     }
 }
-
-// BELOW WAS HOW MMS MESSAGES WERE HANDLED
-
-/*
-                    else { // mms (occurs on multiple lines)
-                        if (currLine.contains("type=\"151\"")) {  // The recipient of the mms message. If there are more than one recipients, then this is a group message.
-                            String currentPhoneNumber = currLine.substring(currLine.indexOf("address=\"") + 9, currLine.indexOf("\" type="));
-
-                            mmsGroupMessagePhoneNumbers.add(currentPhoneNumber);
-                            recipientCount++;
-                        }
-                        if (currLine.contains("<mms text_only=")) {
-                            if (currLine.contains("msg_box=\"1\"")) {  //  message is incoming
-                                mmsIncoming = 1;
-                            } else if (currLine.contains("msg_box=\"2\"")) {  // message is outgoing
-                                mmsIncoming = 0;
-                            }
-
-                            mmsDate = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
-                            mmsContactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.indexOf("\">"));
-                            String mmsPhoneNumber = currLine.substring(currLine.indexOf("address=\"") + 9, currLine.indexOf("\" d_rpt="));
-                            groupMessagePhoneNumber = mmsPhoneNumber;
-
-                            // Fix apostrophe for SQL querying/inserting.
-                            mmsContactName = fixSMSString(mmsContactName);
-
-                            // Check to see that contact has a name. If he/she doesn't have a name, then use the phone number as a name.
-                            if (mmsContactName.equals("(Unknown)")) {
-                                mmsContactName = groupMessagePhoneNumber;
-                            }
-
-                            // If the phone number was not already considered during this run of the program, then will need to see if it is in the db.
-                            // Check to see that the sender is already in the db.
-                            if (!phoneNumberConsidered(mmsPhoneNumber)) {
-                                new MySQLMethods().handleContact(mmsContactName, mmsPhoneNumber);
-                            }
-                        }
-                        if (currLine.contains("ct=\"text/plain\"")) {  // Is a line with text. Indicate that this text message has a picture.
-                            mmsContainsText = true;
-                            mmsText = currLine.substring(currLine.indexOf("text=") + 6, currLine.indexOf("/>") - 2);
-                        }
-
-                        // Reached end of mms message.
-                        if (currLine.length() >= 6 && currLine.contains("</mms>")) {  // end of mms - try inserting into database if this mms message contained text
-
-                            // Get the names of all the people the group message was sent to (if it was a group message).
-                            // If the phone number does not have a name in the database, then just use the number itself.
-                            alsoSentTo = "Recipients: ";
-                            if (recipientCount >= 2) {
-                                while (mmsGroupMessagePhoneNumbers.size() > 0) {
-                                    String currentPhoneNumber = getContactName(mmsGroupMessagePhoneNumbers.get(0));
-                                    // Add the phone number or contact name to the list.
-                                    if (mmsGroupMessagePhoneNumbers.size() > 1) {  // There are others to add to the string of numbers/contacts, so include a comma.
-                                        alsoSentTo += currentPhoneNumber + ", ";
-                                    } else {
-                                        alsoSentTo += currentPhoneNumber;
-                                    }
-                                    // Remove that phone number from the list.
-                                    mmsGroupMessagePhoneNumbers.remove(0);
-                                }
-                            }
-                            mmsGroupMessagePhoneNumbers.clear();
-
-//////////////////////////////////////////////////////////////////////////////////
-/////////////Check to see if the mms message already exists in the database.//////
-//////////////////////////////////////////////////////////////////////////////////
-                            try {
-                                if (messageExists(new MySQLMethods().createSQLTimestamp(mmsDate), mmsContactName)) {
-                                    // Reset the recipient count next message.
-                                    recipientCount = 0;
-                                    continue;
-                                }
-                            } catch (Exception ex) {
-                                System.out.println("Exception trying to check if an mms text message exists: " + ex);
-                            }
-                            String sql = "";
-                            try {
-                                Class.forName("com.mysql.jdbc.Driver");
-
-                                //Swap out certain characters. Apostrophes and newline characters need manipulation before being sent to the MySQL database.
-                                mmsText = fixSMSString(mmsText);
-
-                                try {
-                                    conn = new MySQLMethods().getConnection();   // Fetch the connection again (connections close after a certain amount of time).
-                                    if (recipientCount >= 2) {
-                                        if (mmsContainsText) {
-                                            sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[GROUP MSG] " + mmsText + "\\n\\n" + alsoSentTo + "', " + mmsIncoming + ", (select id from contacts where person_name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
-                                        } else {
-                                            sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[GROUP MSG PIC]" + "\\n\\n" + alsoSentTo + "', " + mmsIncoming + ", (select id from contacts where person_name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
-                                        }
-                                    } else if (mmsContainsText) {
-                                        sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[PICTURE] " + mmsText + "', " + mmsIncoming + ", (select id from contacts where person_name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
-                                    } else {
-                                        sql = "INSERT INTO text_messages (msg_text, incoming, contact_id, sent_timestamp) VALUES ('[PICTURE]', '" + mmsIncoming + "', (select id from contacts where person_name = '" + mmsContactName + "'), '" + new MySQLMethods().createSQLTimestamp(mmsDate) + "'); ";
-                                    }
-                                } catch (Exception ex) {
-                                    System.out.println("Exception: " + ex);
-                                }
-
-                                mmsContainsText = false;  // Reset so we don't accidentally reinsert a message.
-                                PreparedStatement preparedStatement = conn.prepareStatement(sql);
-                                preparedStatement.executeUpdate();
-                                System.out.println(sql);
-                                new MySQLMethods().closePreparedStatement(preparedStatement);
-                            } catch (SQLException sqle) {
-                                System.out.println("SQL Exception ...: " + sqle + "\nInsertion failure: " + sql);
-                            } catch (ClassNotFoundException cnfe) {
-                                System.out.println("ClassNotFoundException: " + cnfe);
-                            }
-
-                            // Reset the recipient count for next message.
-                            recipientCount = 0;
-
-                        }
-                    }
- */

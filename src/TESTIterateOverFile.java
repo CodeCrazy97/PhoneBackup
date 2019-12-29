@@ -4,17 +4,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Scanner;
-import java.util.Set;
-import java.util.TreeMap;
 
 public class TESTIterateOverFile {
 
     public static void main(String[] args) throws FileNotFoundException {
         Scanner input = new Scanner(System.in);
 
-        
         System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\SMS September 25 2018.xml");
         
 
@@ -30,13 +26,13 @@ public class TESTIterateOverFile {
             System.out.println("Exception trying to backup text messages: " + ex);
         }
         System.exit(0);
-         
+        
         System.out.println("Enter the path to the file: ");
         //String path = input.nextLine();
         //path = new MySQLMethods().fixFilePath(path);
 
-        System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\test2.xml");
-        String path = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\test2.xml"; //input.nextLine();
+        System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\sms-20191228161211.xml");
+        String path = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\sms-20191228161211.xml"; //input.nextLine();
         path = new MySQLMethods().fixFilePath(path);
         System.out.println("Path: " + path);
 
@@ -55,8 +51,8 @@ public class TESTIterateOverFile {
                 if (currLine.contains("<mms ")) {
                     System.out.println("\n\n\n");
                 }
-                if (currLine.length() >= 501) {
-                    System.out.println(currLine.substring(0, 500));
+                if (currLine.length() >= 1501) {
+                    System.out.println(currLine.substring(0, 1500));
                 } else {
                     System.out.println(currLine);
                 }
