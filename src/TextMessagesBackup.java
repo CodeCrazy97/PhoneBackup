@@ -161,7 +161,7 @@ class TextMessagesBackup {
 
                         // Clear any variables from previous MMS message.
                         mmsContactName = null;
-                        mmsMessageText = null;
+                        mmsMessageText = "";
                         mmsPhoneNumber = -1;
                         mmsRecipients.clear();
                         mmsSenderPhoneNumber = -1;
@@ -178,8 +178,13 @@ class TextMessagesBackup {
                         }
 
                         // Get phone number.
+                        boolean ignoreRecipientNames = false;
                         int indexOfPhoneNumberClosingQuotes = getClosingQuotes(currLine, "address=\"");
-                        mmsPhoneNumber = fixPhoneNumber(currLine.substring(currLine.indexOf("address=\"") + 9, indexOfPhoneNumberClosingQuotes));
+                        try {
+                            mmsPhoneNumber = fixPhoneNumber(currLine.substring(currLine.indexOf("address=\"") + 9, indexOfPhoneNumberClosingQuotes));
+                        } catch (NumberFormatException nfe) { // SOmething was wrong with the phone number. Likely, it was the combination of group phone numbers (these are delimited by a tilda)
+                            ignoreRecipientNames = true;
+                        }
 
                         // Figure out if the message was incoming or outgoing.
                         if (currLine.contains("msg_box=\"1\"")) { // Incoming message.
@@ -190,11 +195,17 @@ class TextMessagesBackup {
                             mmsSenderPhoneNumber = myPhoneNumber;
                         }
 
-                        // Get the contact name.
-                        int indexOfContactNameClosingQuotes = getClosingQuotes(currLine, "contact_name=\"");
-                        mmsContactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, indexOfContactNameClosingQuotes);
-                        mmsContactName = fixSMSString(mmsContactName);
-
+                        if (!ignoreRecipientNames) {
+                            // Get the contact name.
+                            int indexOfContactNameClosingQuotes = getClosingQuotes(currLine, "contact_name=\"");
+                            mmsContactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, indexOfContactNameClosingQuotes);
+                            mmsContactName = fixSMSString(mmsContactName);
+                        } else { // Otherwise, the mmsContactName is actually a group of contact names, delimited by a comma. Do not try inserting these.
+                            mmsContactName = "Me";
+                            mmsPhoneNumber = myPhoneNumber;
+                        } 
+                        
+                        
                         // Get message timestamp and text.
                         int indexOfTimestampClosingQuotes = getClosingQuotes(currLine, "readable_date=\"");
                         mmsTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, indexOfTimestampClosingQuotes);

@@ -11,13 +11,14 @@ public class TESTIterateOverFile {
     public static void main(String[] args) throws FileNotFoundException {
         Scanner input = new Scanner(System.in);
 
-        System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\SMS September 25 2018.xml");
+        
+        System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\mmstest.xml");
         
 
         TextMessagesBackup tmb = new TextMessagesBackup();
 
         System.out.println("Enter the path to the text messages XML file: ");
-        String textMessageXMLFile = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\SMS September 25 2018.xml"; //input.nextLine();
+        String textMessageXMLFile = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\mmstest.xml"; //input.nextLine();
         textMessageXMLFile = new MySQLMethods().fixFilePath(textMessageXMLFile);
         try {
             String[] args1 = {textMessageXMLFile};
@@ -26,7 +27,7 @@ public class TESTIterateOverFile {
             System.out.println("Exception trying to backup text messages: " + ex);
         }
         System.exit(0);
-        
+
         System.out.println("Enter the path to the file: ");
         //String path = input.nextLine();
         //path = new MySQLMethods().fixFilePath(path);
