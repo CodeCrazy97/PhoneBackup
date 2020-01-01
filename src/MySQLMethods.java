@@ -677,7 +677,6 @@ class MySQLMethods {
 
                 PreparedStatement preparedStatement = conn.prepareStatement(sql);
                 preparedStatement.executeUpdate();
-                System.out.println(sql);
                 preparedStatement.close();
             } catch (SQLException sqle) {
                 System.out.println("SQL Exception: " + sqle);

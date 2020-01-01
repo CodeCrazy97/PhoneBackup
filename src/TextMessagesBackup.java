@@ -179,7 +179,7 @@ class TextMessagesBackup {
 
                         // Get phone number.
                         boolean ignoreRecipientNames = false;
-                        int indexOfPhoneNumberClosingQuotes = getClosingQuotes(currLine, "address=\"");
+                        int indexOfPhoneNumberClosingQuotes = getIndexOfClosingQuotes(currLine, "address=\"", '"');
                         try {
                             mmsPhoneNumber = fixPhoneNumber(currLine.substring(currLine.indexOf("address=\"") + 9, indexOfPhoneNumberClosingQuotes));
                         } catch (NumberFormatException nfe) { // SOmething was wrong with the phone number. Likely, it was the combination of group phone numbers (these are delimited by a tilda)
@@ -197,17 +197,20 @@ class TextMessagesBackup {
 
                         if (!ignoreRecipientNames) {
                             // Get the contact name.
-                            int indexOfContactNameClosingQuotes = getClosingQuotes(currLine, "contact_name=\"");
+                            int indexOfContactNameClosingQuotes = getIndexOfClosingQuotes(currLine, "contact_name=\"", '"');
                             mmsContactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, indexOfContactNameClosingQuotes);
-                            mmsContactName = fixSMSString(mmsContactName);
+                            if (mmsContactName.equals("(Unknown)")) { // Unknown contact. Use phone number as name.
+                                mmsContactName = "" + mmsSenderPhoneNumber;
+                            } else { // Contact name is known. Use the stored name.
+                                mmsContactName = fixSMSString(mmsContactName);
+                            }
                         } else { // Otherwise, the mmsContactName is actually a group of contact names, delimited by a comma. Do not try inserting these.
                             mmsContactName = "Me";
                             mmsPhoneNumber = myPhoneNumber;
-                        } 
-                        
-                        
+                        }
+
                         // Get message timestamp and text.
-                        int indexOfTimestampClosingQuotes = getClosingQuotes(currLine, "readable_date=\"");
+                        int indexOfTimestampClosingQuotes = getIndexOfClosingQuotes(currLine, "readable_date=\"", '"');
                         mmsTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, indexOfTimestampClosingQuotes);
                         mmsTimestamp = new MySQLMethods().createSQLTimestamp(mmsTimestamp);
 
@@ -232,12 +235,24 @@ class TextMessagesBackup {
                         }
 
                     } else if (!skipMMS && currLine.contains("ct=\"text/plain\"")) { // This line contains a text message.
-                        int indexOfMessageClosingQuotes = getClosingQuotes(currLine, "text=\"");
-                        mmsMessageText = currLine.substring(currLine.indexOf("text=\"") + 6, indexOfMessageClosingQuotes);
-                        mmsMessageText = fixSMSString(mmsMessageText);
+                        int indexOfMessageOpeningQuotes = -1;
+                        int indexOfMessageClosingQuotes = -1;
+                        if (currLine.contains("text=\"")) {
+                            indexOfMessageOpeningQuotes = currLine.indexOf("text=\"") + 6;
+                            indexOfMessageClosingQuotes = getIndexOfClosingQuotes(currLine, "text=\"", '"');
+                        } else if (currLine.contains("text='")) {
+                            indexOfMessageOpeningQuotes = currLine.indexOf("text='") + 6;
+                            indexOfMessageClosingQuotes = getIndexOfClosingQuotes(currLine, "text='", '\'');
+                        }
+                        if (indexOfMessageOpeningQuotes != -1 || indexOfMessageClosingQuotes != -1) {
+                            mmsMessageText = currLine.substring(indexOfMessageOpeningQuotes, indexOfMessageClosingQuotes);
+                            mmsMessageText = fixSMSString(mmsMessageText);
+                        } else {
+                            throw new Error("The index of the closing/opening quotes is invalid. It probably could not be found. Current line of XML file: \n\n" + currLine + "\n\n\n");
+                        }
                     } else if (!skipMMS && currLine.contains("<addr address=\"") && currLine.contains("type=\"151\"")) {
                         // Fetch the recipient's phone number.
-                        int indexOfPhoneNumberClosingQuotes = getClosingQuotes(currLine, "<addr address=\"");
+                        int indexOfPhoneNumberClosingQuotes = getIndexOfClosingQuotes(currLine, "<addr address=\"", '"');
                         long phoneNumber = Long.parseLong(currLine.substring(currLine.indexOf("<addr address=\"") + 15, indexOfPhoneNumberClosingQuotes));
                         mmsRecipients.add(phoneNumber);
                         allMMSRecipientPhoneNumbers.put(phoneNumber, phoneNumber);
@@ -284,12 +299,13 @@ class TextMessagesBackup {
                             sql += "(" + entry.getValue().getPhoneNumber() + ", '" + entry.getValue().getPersonName() + "'), ";
                         }
 
-                        // Chop of the last comma, replace it with a semicolon.
-                        sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
+                        if (sql.contains("'")) { // The sql statement has something to insert.
+                            // Chop of the last comma, replace it with a semicolon.
+                            sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
 
-                        System.out.println(sql);
-
-                        new MySQLMethods().executeSQL(sql);
+                            System.out.println(sql);
+                            new MySQLMethods().executeSQL(sql);
+                        }
                     }
                 } catch (Exception e) {
                     System.out.println("Exception trying to create the multiple inserts for contacts: " + e);
@@ -307,12 +323,11 @@ class TextMessagesBackup {
                             }
                         }
 
-                        // Chop of the last comma, replace it with a semicolon.
-                        sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
-
-                        System.out.println(sql);
-
                         if (sql.contains("'")) { // The sql statement has something to insert.
+                            // Chop of the last comma, replace it with a semicolon.
+                            sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
+
+                            System.out.println(sql);
                             new MySQLMethods().executeSQL(sql);
                         }
                     }
@@ -388,9 +403,9 @@ class TextMessagesBackup {
         }
     }
 
-    public static int getClosingQuotes(String bigStr, String beginString) {
+    public static int getIndexOfClosingQuotes(String bigStr, String beginString, char quoteType) {
         int indexOfClosingQuotes = bigStr.indexOf(beginString) + beginString.length();
-        while (bigStr.charAt(indexOfClosingQuotes) != '\"') {
+        while (bigStr.charAt(indexOfClosingQuotes) != quoteType) {
             indexOfClosingQuotes++;
         }
         return indexOfClosingQuotes;
