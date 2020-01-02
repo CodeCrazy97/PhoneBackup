@@ -339,12 +339,12 @@ class TextMessagesBackup {
                 try {
                     if (smsTextsToInsert.size() > 0) {
 
-                        String sql = "INSERT INTO text_messages (msg_text, sender_phone_num, msg_timestamp, text_only) VALUES ";
-                        String sqlRecipients = "INSERT INTO text_message_recipients (contact_phone_num, text_message_id) VALUES ";
+                        String sql = "INSERT INTO text_messages (msg_text, sender_phone_number, msg_timestamp, text_only) VALUES ";
+                        String sqlRecipients = "INSERT INTO text_message_recipients (contact_phone_number, text_message_id) VALUES ";
                         for (int i = 0; i < smsTextsToInsert.size(); i++) {
                             sql += "('" + smsTextsToInsert.get(i).getMessageText() + "', " + smsTextsToInsert.get(i).getSenderPhoneNumber() + ", '" + smsTextsToInsert.get(i).getTimestamp() + "', 1), ";
                             // Create a recipient for the text message.
-                            sqlRecipients += "(" + smsTextsToInsert.get(i).getRecipientPhoneNumber() + ", (SELECT MAX(id) FROM text_messages WHERE sender_phone_num = " + smsTextsToInsert.get(i).getSenderPhoneNumber() + " AND msg_timestamp = '" + smsTextsToInsert.get(i).getTimestamp() + "')), ";
+                            sqlRecipients += "(" + smsTextsToInsert.get(i).getRecipientPhoneNumber() + ", (SELECT MAX(id) FROM text_messages WHERE sender_phone_number = " + smsTextsToInsert.get(i).getSenderPhoneNumber() + " AND msg_timestamp = '" + smsTextsToInsert.get(i).getTimestamp() + "')), ";
                         }
 
                         // Chop of the last comma, replace it with a semicolon.
@@ -364,8 +364,8 @@ class TextMessagesBackup {
                 // Insert the MMS text messages into the database.
                 try {
                     if (mmsTextsToInsert.size() > 0) {
-                        String sqlTextMessages = "INSERT INTO text_messages (msg_text, sender_phone_num, msg_timestamp, text_only) VALUES ";
-                        String sqlTextMessageRecipients = "INSERT INTO text_message_recipients (contact_phone_num, text_message_id) VALUES ";
+                        String sqlTextMessages = "INSERT INTO text_messages (msg_text, sender_phone_number, msg_timestamp, text_only) VALUES ";
+                        String sqlTextMessageRecipients = "INSERT INTO text_message_recipients (contact_phone_number, text_message_id) VALUES ";
                         for (int i = 0; i < mmsTextsToInsert.size(); i++) {
                             if (mmsTextsToInsert.get(i).containsPicture()) {
                                 sqlTextMessages += "('" + mmsTextsToInsert.get(i).getMessageText() + "', " + mmsTextsToInsert.get(i).getSenderPhoneNumber() + ", '" + mmsTextsToInsert.get(i).getTimestamp() + "', 0), ";
@@ -375,7 +375,7 @@ class TextMessagesBackup {
                             // Loop over recipients.
                             Long[] recipients = mmsTextsToInsert.get(i).getRecipients();
                             for (int j = 0; j < recipients.length; j++) {
-                                sqlTextMessageRecipients += "(" + recipients[j] + ", (SELECT MAX(id) FROM text_messages WHERE sender_phone_num = " + mmsTextsToInsert.get(i).getSenderPhoneNumber() + " AND msg_timestamp = '" + mmsTextsToInsert.get(i).getTimestamp() + "')), ";
+                                sqlTextMessageRecipients += "(" + recipients[j] + ", (SELECT MAX(id) FROM text_messages WHERE sender_phone_number = " + mmsTextsToInsert.get(i).getSenderPhoneNumber() + " AND msg_timestamp = '" + mmsTextsToInsert.get(i).getTimestamp() + "')), ";
                             }
                         }
                         // Chop of the last comma, replace it with a semicolon.

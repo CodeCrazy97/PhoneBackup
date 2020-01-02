@@ -50,11 +50,10 @@ class CallsBackup {
                         String callTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                         String contactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.indexOf("\" />"));
                         contactName = fixForInsertion(contactName);
-                        String incomingInt = currLine.substring(currLine.indexOf("type=\"") + 6, currLine.indexOf("\" presentation"));
-                        int incoming = 1;  // 1 = true, 0 = false
-                        if (incomingInt.equals("2")) {  // I dialed the number.
-                            incoming = 0;
-                        }
+                        int callType = Integer.parseInt(currLine.substring(currLine.indexOf("type=\"") + 6, currLine.indexOf("\" presentation")));  // 1 = incoming, 2 = outgoing, 3 = incoming and the contact left a voicemail
+                        
+                        
+                        
                         String myDriver = "org.gjt.mm.mysql.Driver";
 
                         Class.forName(myDriver);
@@ -90,7 +89,7 @@ class CallsBackup {
                                 new MySQLMethods().handleContact(contactName, phoneNumber);
                             }
 
-                            String sql = "INSERT INTO phone_calls (contact_id, call_timestamp, duration, incoming) VALUES ((SELECT id FROM contacts WHERE person_name = '" + contactName + "'), '" + new MySQLMethods().createSQLTimestamp(callTimestamp) + "', " + duration + ", " + incoming + "); ";
+                            String sql = "INSERT INTO phone_calls (contact_phone_number, call_timestamp, duration, call_type) VALUES ((SELECT id FROM contacts WHERE person_name = '" + contactName + "'), '" + new MySQLMethods().createSQLTimestamp(callTimestamp) + "', " + duration + ", " + callType + "); ";
 
                             PreparedStatement preparedStatement = conn.prepareStatement(sql);
                             preparedStatement.executeUpdate();

@@ -184,7 +184,7 @@ class MySQLMethods {
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT date_format(msg_timestamp, '%Y-%c-%e %k:%i:%s') FROM text_messages WHERE sender_phone_num = " + c.getPhoneNumber() + ";";
+            String query = "SELECT date_format(msg_timestamp, '%Y-%c-%e %k:%i:%s') FROM text_messages WHERE sender_phone_number = " + c.getPhoneNumber() + ";";
 
             st = conn.createStatement();
             rs = st.executeQuery(query);
@@ -573,7 +573,7 @@ class MySQLMethods {
             Class.forName(myDriver);
 
             // get the id that was last created during an insert statement
-            String query = "SELECT MAX(id) FROM text_messages WHERE sender_phone_num = " + senderPhoneNumber + " AND msg_timestamp = '" + timestamp + "';";
+            String query = "SELECT MAX(id) FROM text_messages WHERE sender_phone_number = " + senderPhoneNumber + " AND msg_timestamp = '" + timestamp + "';";
 
             // create the java statement
             st = conn.createStatement();
@@ -607,12 +607,12 @@ class MySQLMethods {
             // We want picture texts to appear last in the query results, because 
             // they appear last in the XML file created by SMS Backup & Restore.
             // (Putting them last in the query results will be more efficient.)
-            String query = "(SELECT msg_text, DATE_FORMAT(msg_timestamp, '%Y-%c-%e %k:%i:%s'), sender_phone_num\n"
+            String query = "(SELECT msg_text, DATE_FORMAT(msg_timestamp, '%Y-%c-%e %k:%i:%s'), sender_phone_number\n"
                     + "FROM text_messages\n"
                     + "WHERE text_only = 1\n"
                     + "ORDER BY msg_timestamp ASC)\n"
                     + "UNION ALL\n"
-                    + "(SELECT msg_text, DATE_FORMAT(msg_timestamp, '%Y-%c-%e %k:%i:%s'), sender_phone_num\n"
+                    + "(SELECT msg_text, DATE_FORMAT(msg_timestamp, '%Y-%c-%e %k:%i:%s'), sender_phone_number\n"
                     + "FROM text_messages\n"
                     + "WHERE text_only = 0\n"
                     + "ORDER BY msg_timestamp ASC);";
