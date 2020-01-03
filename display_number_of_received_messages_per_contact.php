@@ -1,5 +1,8 @@
-<?php
 
+<?php
+	
+	
+	
 	function start_table($border=1, $cellspacing=2, $cellpadding=2) {
 		echo "<table border=$border cellspacing=$cellspacing cellpadding=$cellpadding>\n";
 	}
