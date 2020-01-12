@@ -6,6 +6,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
 import java.util.LinkedList;
+import java.util.Map;
+import java.util.Set;
 
 class CallsBackup {
 
@@ -38,6 +40,10 @@ class CallsBackup {
 
             LinkedList<PhoneCall> phoneCallsToInsert = new LinkedList<>();
 
+            // The phone_number is the unique key that will identify each contact.
+            // The contact's name (person_name in the database) is the value in the below maps.
+            ContactsManager contactsManager = new ContactsManager();
+
             int beginTimeMillis = (int) System.currentTimeMillis();
             while ((currLine = br.readLine()) != null) {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
@@ -46,7 +52,7 @@ class CallsBackup {
                         long contactPhoneNumber = Long.parseLong(currLine.substring(currLine.indexOf("call number=\"") + 13, currLine.indexOf("\" duration")));
                         String callTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                         callTimestamp = new MySQLMethods().createSQLTimestamp(callTimestamp);
-                        
+
                         // Check if the phone call record already exists in the database.
                         // If it exists, then go on to the next call and don't place it
                         // in the list of calls to insert.
@@ -69,6 +75,9 @@ class CallsBackup {
                         contactName = fixForInsertion(contactName);
                         int callType = Integer.parseInt(currLine.substring(currLine.indexOf("type=\"") + 6, currLine.indexOf("\" presentation")));  // 1 = incoming, 2 = outgoing, 3 = incoming and the contact left a voicemail
 
+                        Contact c = new Contact(contactPhoneNumber, contactName);
+                        contactsManager.handleContact(c);
+
                         phoneCallsToInsert.add(new PhoneCall(callTimestamp, contactPhoneNumber, duration, callType));
 
                     } catch (Exception ex) {
@@ -77,8 +86,10 @@ class CallsBackup {
                 }
             }
 
+            // update the database with new contacts
+            contactsManager.updateDatabase();
+
             // Insert the contacts, if any need to be inserted.
-            
             // Insert the phone calls into the database.
             try {
                 if (phoneCallsToInsert.size() > 0) {
@@ -88,7 +99,7 @@ class CallsBackup {
                     for (int i = 0; i < phoneCallsToInsert.size(); i++) {
                         sql += "(" + phoneCallsToInsert.get(i).getContactPhoneNumber() + ", " + phoneCallsToInsert.get(i).getDuration() + ", '" + phoneCallsToInsert.get(i).getTimestamp() + "', " + phoneCallsToInsert.get(i).getCallType() + "), ";
                     }
-                    
+
                     // Chop of the last comma, replace it with a semicolon.
                     sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
 

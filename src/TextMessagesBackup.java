@@ -40,10 +40,6 @@ class TextMessagesBackup {
         // Will be used to check if texts already exist.
         databaseTextMessages = new MySQLMethods().getTextMessages();
 
-        // xmlFileContacts - a map of all the contacts in the XML file that were texted and/or texts were received from.
-        // databaseContacts - all the contacts stored in the database.
-        // duplicates - all contacts that appear in both the xmlFileContacts and databaseContacts data structures.
-        // 
         // The phone_number is the unique key that will identify each contact.
         // The contact's name (person_name in the database) is the value in the below maps.
         ContactsManager contactsManager = new ContactsManager();
@@ -257,35 +253,9 @@ class TextMessagesBackup {
                     }
                 }
 
-                // Remove the duplicate contacts from both XML and Database maps.
-                contactsManager.removeDuplicates();
-                // Now, update any contacts that have had a name change.
-                contactsManager.updateContacts();
-
-                try {
-                    // Before inserting any text messages, add any new contacts discovered in the XML file to the database.
-                    if (contactsManager.getXmlFileContacts().size() > 0) {
-                        Set<Map.Entry<String, Contact>> entrySet = contactsManager.getXmlFileContacts().entrySet();
-                        String sql = "INSERT INTO contacts (phone_number, person_name) VALUES ";
-                        for (Map.Entry<String, Contact> entry : entrySet) {
-                            // Create the multiple insert string.
-                            // (Using a batch insert instead of creating a single
-                            // insert for each contact will improve performance.)
-                            sql += "(" + entry.getValue().getPhoneNumber() + ", '" + entry.getValue().getPersonName() + "'), ";
-                        }
-
-                        if (sql.contains("'")) { // The sql statement has something to insert.
-                            // Chop of the last comma, replace it with a semicolon.
-                            sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
-
-                            System.out.println(sql);
-                            new MySQLMethods().executeSQL(sql);
-                        }
-                    }
-                } catch (Exception e) {
-                    System.out.println("Exception trying to create the multiple inserts for contacts: " + e);
-                }
-
+                // update the database with any new contacts
+                contactsManager.updateDatabase();
+                
                 // Now, loop over all the recipient phone numbers that appeared in the mms text messages. See if any are not in the database. Add them if they aren't.
                 Map<Long, Long> phoneNumbers = new MySQLMethods().getPhoneNumbers();
                 try {

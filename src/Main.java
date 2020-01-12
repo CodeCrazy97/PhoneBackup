@@ -72,7 +72,6 @@ public class Main {
                 CallsBackup backup2 = new CallsBackup();
 
                 // Set the list of phone numbers to what was already considered with the text messages (do this solely for efficiency).
-                backup2.phoneNumbers = backup.phoneNumbers;
                 System.out.println("Enter the path to the phone calls XML file: ");
                 String phoneCallsXMLFile = input.nextLine();
                 phoneCallsXMLFile = new MySQLMethods().fixFilePath(phoneCallsXMLFile);

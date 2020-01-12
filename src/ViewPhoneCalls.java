@@ -32,9 +32,7 @@ public class ViewPhoneCalls {
             System.out.println("Total number of received calls: " + numberOfReceivedCalls);
         }
         System.out.println("Total time spent on the phone:  " + secondsFormatted(new MySQLMethods().getTimeSpentOnPhone()));
-        if (numberOfDialedCalls + numberOfReceivedCalls > 0) {  // If there were any phone calls lasting more than zero seconds, then inform the user that the stastics regarding those calls excluded zero-duration calls.
-            System.out.println("(The above totals exclude phone calls that lasted zero seconds.)");
-        }
+        
         System.out.println();
 
         conn = new MySQLMethods().getConnection();
@@ -44,7 +42,7 @@ public class ViewPhoneCalls {
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT contact_id, duration, DATE_FORMAT(call_timestamp, '%a %b %d, %Y at %r'), incoming FROM phone_calls ORDER BY call_timestamp DESC;";
+            String query = "SELECT contact_phone_number, duration, DATE_FORMAT(call_timestamp, '%a %b %d, %Y at %r'), call_type FROM phone_calls ORDER BY call_timestamp DESC;";
 
             // create the java statement
             st = conn.createStatement();
@@ -69,11 +67,11 @@ public class ViewPhoneCalls {
                     System.out.println("\n----------------------------------------------------------------------------------------------");
                 }
 
-                if (rs.getString(4).equals("0")) {  // I initiated the phone call (I was the dialer).
-                    System.out.printf("%-35s%-12s%-27s%-50s", rs.getString(3), "Outgoing", new MySQLMethods().getContactNameFromID(rs.getInt(1)), secondsFormatted(rs.getInt(2)));
+                if (rs.getString(4).equals("2")) {  // I initiated the phone call (I was the dialer).
+                    System.out.printf("%-35s%-12s%-27s%-50s", rs.getString(3), "Outgoing", new MySQLMethods().getContactNameFromPhoneNumber(rs.getLong(1)), secondsFormatted(rs.getInt(2)));
                     System.out.println();
                 } else {  // The receiver initiated the phone call (I received the call).
-                    System.out.printf("%-35s%-12s%-27s%-50s", rs.getString(3), "Incoming", new MySQLMethods().getContactNameFromID(rs.getInt(1)), secondsFormatted(rs.getInt(2)));
+                    System.out.printf("%-35s%-12s%-27s%-50s", rs.getString(3), "Incoming", new MySQLMethods().getContactNameFromPhoneNumber(rs.getLong(1)), secondsFormatted(rs.getInt(2)));
                     System.out.println();
                 }
 

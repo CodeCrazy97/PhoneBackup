@@ -53,6 +53,38 @@ public class ContactsManager {
         }
     }
 
+    // This method inserts any new contacts into the database.
+    public void updateDatabase() {
+        // Remove the duplicate contacts from both XML and Database maps.
+        removeDuplicates();
+        // Now, update any contacts that have had a name change.
+        updateContacts();
+
+        try {
+            // Before inserting any text messages, add any new contacts discovered in the XML file to the database.
+            if (xmlFileContacts.size() > 0) {
+                Set<Map.Entry<String, Contact>> entrySet = xmlFileContacts.entrySet();
+                String sql = "INSERT INTO contacts (phone_number, person_name) VALUES ";
+                for (Map.Entry<String, Contact> entry : entrySet) {
+                    // Create the multiple insert string.
+                    // (Using a batch insert instead of creating a single
+                    // insert for each contact will improve performance.)
+                    sql += "(" + entry.getValue().getPhoneNumber() + ", '" + entry.getValue().getPersonName() + "'), ";
+                }
+
+                if (sql.contains("'")) { // The sql statement has something to insert.
+                    // Chop of the last comma, replace it with a semicolon.
+                    sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
+
+                    System.out.println(sql);
+                    new MySQLMethods().executeSQL(sql);
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Exception trying to create the multiple inserts for contacts: " + e);
+        }
+    }
+
     public void updateContacts() {
         // Now, see if any of the "new" contacts are old contacts that were given a new name.
         Set<Map.Entry<String, Contact>> entrySet4 = databaseContacts.entrySet();

@@ -95,9 +95,9 @@ class MySQLMethods {
 
             String query = "";
             if (incoming) {
-                query = "SELECT COUNT(*) FROM phone_calls WHERE incoming = 1 AND duration > 0;";
+                query = "SELECT COUNT(*) FROM phone_calls WHERE call_type = 2;";
             } else {
-                query = "SELECT COUNT(*) FROM phone_calls WHERE incoming = 0 AND duration > 0;";
+                query = "SELECT COUNT(*) FROM phone_calls WHERE call_type != 0;";
             }
 
             // create the java statement
@@ -157,7 +157,7 @@ class MySQLMethods {
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT p.duration, DATE_FORMAT(p.call_timestamp, '%W %M %d, %Y'), c.person_name FROM phone_calls p JOIN (SELECT person_name, phone_number FROM contacts) c ON c.phone_number = p.phone_number ORDER BY p.duration DESC LIMIT 1;";
+            String query = "SELECT p.duration, DATE_FORMAT(p.call_timestamp, '%W %M %d, %Y'), c.person_name FROM phone_calls p JOIN (SELECT person_name, phone_number FROM contacts) c ON c.phone_number = p.contact_phone_number ORDER BY p.duration DESC LIMIT 1;";
 
             st = conn.createStatement();
             rs = st.executeQuery(query);
@@ -507,14 +507,14 @@ class MySQLMethods {
         }
     }
 
-    public static String getContactNameFromID(int id) {
+    public static String getContactNameFromPhoneNumber(long phoneNumber) {
         conn = new MySQLMethods().getConnection();
         try {
             // create our mysql database connection
             String myDriver = "org.gjt.mm.mysql.Driver";
             Class.forName(myDriver);
 
-            String query = "SELECT person_name FROM contacts WHERE id = " + id;
+            String query = "SELECT person_name FROM contacts WHERE phone_number = " + phoneNumber;
 
             // create the java statement
             st = conn.createStatement();
@@ -534,7 +534,7 @@ class MySQLMethods {
         }
 
         // No contact existed with that id. So, just return the id itself.
-        return "" + id;
+        return "" + phoneNumber;
     }
 
     public static long getMyPhoneNumber() {
@@ -667,7 +667,7 @@ class MySQLMethods {
         }
         return phoneCalls;
     }
-    
+
     // Fetches the last backup timestamp for text messages or phone calls (type determines which one we're fetching the timestamp for)
     public static String getLastBackupDate(String type) {
         conn = getConnection();
@@ -739,7 +739,7 @@ class MySQLMethods {
 
             conn.close();
         } catch (Exception e) {
-            if (e.toString().contains("Duplicate entry 'text messages' for key 'PRIMARY'")) {
+            if (e.toString().contains("Duplicate entry '" + type + "' for key 'PRIMARY'")) {
                 // Try updating instead of inserting.
                 try {
                     // create the java mysql update preparedstatement
@@ -756,6 +756,8 @@ class MySQLMethods {
                 } finally {
                     closeConnection(conn);
                 }
+            } else {
+                System.out.println("Error trying to update last backup timestamp for " + type + ": " + e);
             }
         } finally {
             closeConnection(conn);

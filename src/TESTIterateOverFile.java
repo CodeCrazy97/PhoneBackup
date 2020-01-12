@@ -15,10 +15,10 @@ public class TESTIterateOverFile {
         // calls: "C:\Users\Ethan\Documents\Projects\SMS\XML Files\calls-20200101082028.xml"
         System.out.println("C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\SMS Backup August 27 2018.xml");
 
-        TextMessagesBackup tm = new TextMessagesBackup();
+        CallsBackup tm = new CallsBackup();
 
         System.out.println("Enter the path to the text messages XML file: ");
-        String xmlFile = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\sms-20191228161211.xml"; //input.nextLine();
+        String xmlFile = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\calls-20200101082028.xml"; //input.nextLine();
         xmlFile = new MySQLMethods().fixFilePath(xmlFile);
         try {
             String[] args1 = {xmlFile};
