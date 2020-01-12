@@ -1,5 +1,5 @@
 -- --------------------------------------------------------
--- Host:                         127.0.0.1
+-- Host:                         localhost
 -- Server version:               10.3.16-MariaDB - mariadb.org binary distribution
 -- Server OS:                    Win64
 -- HeidiSQL Version:             10.2.0.5599
@@ -18,11 +18,10 @@ USE `phone_backup`;
 
 -- Dumping structure for table phone_backup.contacts
 CREATE TABLE IF NOT EXISTS `contacts` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
   `person_name` varchar(30) NOT NULL,
   `phone_number` bigint(20) NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=238 DEFAULT CHARSET=latin1;
+  PRIMARY KEY (`phone_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- Data exporting was unselected.
 
@@ -33,27 +32,19 @@ CREATE TABLE IF NOT EXISTS `last_backup_timestamps` (
   PRIMARY KEY (`backup_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
--- Dumping data for table phone_backup.last_backup_timestamps: ~0 rows (approximately)
-DELETE FROM `last_backup_timestamps`;
-/*!40000 ALTER TABLE `last_backup_timestamps` DISABLE KEYS */;
-INSERT INTO `last_backup_timestamps` (`backup_name`, `backup_timestamp`) VALUES
-	('phone calls', '0000-00-00 00:00:00'),
-	('text messages', '0000-00-00 00:00:00');
-/*!40000 ALTER TABLE `last_backup_timestamps` ENABLE KEYS */;
-
 -- Data exporting was unselected.
 
 -- Dumping structure for table phone_backup.phone_calls
 CREATE TABLE IF NOT EXISTS `phone_calls` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `contact_id` int(11) NOT NULL,
+  `contact_phone_number` bigint(20) NOT NULL,
   `duration` int(5) NOT NULL,
-  `call_timestamp` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `incoming` tinyint(1) NOT NULL,
+  `call_timestamp` timestamp NULL DEFAULT NULL,
+  `call_type` tinyint(1) NOT NULL,
   PRIMARY KEY (`id`),
-  KEY `phone_calls_fk2` (`contact_id`),
-  CONSTRAINT `phone_calls_fk2` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1891 DEFAULT CHARSET=latin1;
+  KEY `phone_calls_fk2` (`contact_phone_number`),
+  CONSTRAINT `phone_calls_fk2` FOREIGN KEY (`contact_phone_number`) REFERENCES `contacts` (`phone_number`)
+) ENGINE=InnoDB AUTO_INCREMENT=3017 DEFAULT CHARSET=latin1;
 
 -- Data exporting was unselected.
 
@@ -61,13 +52,25 @@ CREATE TABLE IF NOT EXISTS `phone_calls` (
 CREATE TABLE IF NOT EXISTS `text_messages` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `msg_text` text NOT NULL,
-  `incoming` tinyint(1) NOT NULL,
-  `contact_id` int(11) NOT NULL,
-  `sent_timestamp` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `sender_phone_number` bigint(20) NOT NULL,
+  `msg_timestamp` timestamp NULL DEFAULT NULL,
+  `text_only` tinyint(1) NOT NULL DEFAULT 1,
   PRIMARY KEY (`id`),
-  KEY `text_messages_fk1` (`contact_id`),
-  CONSTRAINT `text_messages_fk1` FOREIGN KEY (`contact_id`) REFERENCES `contacts` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=16288 DEFAULT CHARSET=latin1 MAX_ROWS=1000000;
+  KEY `text_messages_fk1` (`sender_phone_number`),
+  CONSTRAINT `text_messages_fk1` FOREIGN KEY (`sender_phone_number`) REFERENCES `contacts` (`phone_number`)
+) ENGINE=InnoDB AUTO_INCREMENT=58301 DEFAULT CHARSET=latin1 MAX_ROWS=1000000;
+
+-- Data exporting was unselected.
+
+-- Dumping structure for table phone_backup.text_message_recipients
+CREATE TABLE IF NOT EXISTS `text_message_recipients` (
+  `contact_phone_number` bigint(20) NOT NULL,
+  `text_message_id` int(11) NOT NULL,
+  KEY `contact_fk` (`contact_phone_number`),
+  KEY `text_message_fk` (`text_message_id`),
+  CONSTRAINT `contact_fk` FOREIGN KEY (`contact_phone_number`) REFERENCES `contacts` (`phone_number`),
+  CONSTRAINT `text_message_fk` FOREIGN KEY (`text_message_id`) REFERENCES `text_messages` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- Data exporting was unselected.
 
