@@ -12,10 +12,8 @@ class CallsBackup {
     static Connection conn = null;
     static Statement st = null;
     static ResultSet rs = null;
-    //phoneNumbers (a linked list that stores all the phone numbers) is a data structure that saves the user from
-    //having to confirm more than once whether or not to allow the program to create a new contact. Without the
-    //phoneNumbers linked list, the program might ask the user multiple times if he/she would like to add a contact
-    //to the database (this would happen if more than one message was sent/received from the same contact).
+    static LinkedList<PhoneCall> databasePhoneCalls;
+
     public static LinkedList<String> phoneNumbers = new LinkedList<>();
 
     public static void main(String[] args) throws IOException, SQLException {
@@ -36,97 +34,91 @@ class CallsBackup {
             System.out.println();
             System.out.println("Getting ready to backup phone calls. Click OK to continue. This may take a few minutes.");
 
+            databasePhoneCalls = new MySQLMethods().getPhoneCalls();
+
+            LinkedList<PhoneCall> phoneCallsToInsert = new LinkedList<>();
+
             int beginTimeMillis = (int) System.currentTimeMillis();
-            while ((currLine = br.readLine()) != null) {                
+            while ((currLine = br.readLine()) != null) {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
-                    conn = new MySQLMethods().getConnection();
-                    if (conn == null) {
-                        System.out.println("\nUnable to connect to the database. \nPlease check the connection. \nTry manually starting MySQL server. \nYou may need to delete the aria_log.* file, \nlocated in C:\\xampp\\mysql\\data");
-                        return;
-                    }
+
                     try {
-                        String phoneNumber = currLine.substring(currLine.indexOf("call number=\"") + 13, currLine.indexOf("\" duration"));
-                        String duration = currLine.substring(currLine.indexOf("duration=\"") + 10, currLine.indexOf("\" date="));
+                        long contactPhoneNumber = Long.parseLong(currLine.substring(currLine.indexOf("call number=\"") + 13, currLine.indexOf("\" duration")));
                         String callTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
+                        callTimestamp = new MySQLMethods().createSQLTimestamp(callTimestamp);
+                        
+                        // Check if the phone call record already exists in the database.
+                        // If it exists, then go on to the next call and don't place it
+                        // in the list of calls to insert.
+                        // If it does not already exist, then place it in the list of 
+                        // calls that will need to be inserted into the database.
+                        try {
+                            if (phoneCallExists(callTimestamp, contactPhoneNumber)) {
+                                // This phone call already exists in the DB. Go to next phone call in the XML file.
+                                continue;
+                            }
+                        } catch (Exception ex) {
+                            System.out.println("Exception trying to check if a text message exists: " + ex);
+                        }
+
+                        // At this point, we know that the call does not already exist in the database. 
+                        // Fetch the other information (duration, contact name, calltype) and create 
+                        // a new instance for insertion.
+                        int duration = Integer.parseInt(currLine.substring(currLine.indexOf("duration=\"") + 10, currLine.indexOf("\" date=")));
                         String contactName = currLine.substring(currLine.indexOf("contact_name=\"") + 14, currLine.indexOf("\" />"));
                         contactName = fixForInsertion(contactName);
                         int callType = Integer.parseInt(currLine.substring(currLine.indexOf("type=\"") + 6, currLine.indexOf("\" presentation")));  // 1 = incoming, 2 = outgoing, 3 = incoming and the contact left a voicemail
-                        
-                        
-                        
-                        String myDriver = "org.gjt.mm.mysql.Driver";
 
-                        Class.forName(myDriver);
+                        phoneCallsToInsert.add(new PhoneCall(callTimestamp, contactPhoneNumber, duration, callType));
 
-                        try {  // check that the call does not already xist in the database
-                            String query = "SELECT COUNT(*) FROM phone_calls WHERE call_timestamp = '" + new MySQLMethods().createSQLTimestamp(callTimestamp) + "'; ";
-
-                            st = conn.createStatement();
-                            rs = st.executeQuery(query);
-
-                            // iterate through the java resultset
-                            boolean exists = false;
-                            while (rs.next()) {
-                                if (!rs.getString(1).equals("0")) {  //The call exists in the database
-                                    exists = true;
-                                }
-                            }
-
-                            if (exists) {  // don't insert a call into the database if it already exists
-                                continue;
-                            }  // else, go on to insertion
-                        } catch (Exception e) {
-                            System.err.println("Exception trying to see if the call exists: " + e.getMessage());
-                        } finally {
-                            new MySQLMethods().closeResultSet(rs);
-                            new MySQLMethods().closeStatement(st);
-                        }
-                        try {  // now try inserting the call into the database
-                            Class.forName("com.mysql.jdbc.Driver");
-
-                            // First, check to see that the contact exists in the database.
-                            if (!phoneNumberConsidered(phoneNumber)) {
-                                new MySQLMethods().handleContact(contactName, phoneNumber);
-                            }
-
-                            String sql = "INSERT INTO phone_calls (contact_phone_number, call_timestamp, duration, call_type) VALUES ((SELECT id FROM contacts WHERE person_name = '" + contactName + "'), '" + new MySQLMethods().createSQLTimestamp(callTimestamp) + "', " + duration + ", " + callType + "); ";
-
-                            PreparedStatement preparedStatement = conn.prepareStatement(sql);
-                            preparedStatement.executeUpdate();
-                            System.out.println(sql);
-                            preparedStatement.close();
-                        } catch (SQLException sqle) {
-                            System.out.println("SQL Exception: " + sqle);
-                        } catch (ClassNotFoundException cnfe) {
-                            System.out.println("ClassNotFoundException: " + cnfe);
-                        }
                     } catch (Exception ex) {
                         System.out.println("Exception : " + ex);
-                    } finally {
-                        new MySQLMethods().closeConnection(conn);
                     }
                 }
             }
+
+            // Insert the contacts, if any need to be inserted.
+            
+            // Insert the phone calls into the database.
+            try {
+                if (phoneCallsToInsert.size() > 0) {
+
+                    // Build the SQL insert string.
+                    String sql = "INSERT INTO phone_calls (contact_phone_number, duration, call_timestamp, call_type) VALUES ";
+                    for (int i = 0; i < phoneCallsToInsert.size(); i++) {
+                        sql += "(" + phoneCallsToInsert.get(i).getContactPhoneNumber() + ", " + phoneCallsToInsert.get(i).getDuration() + ", '" + phoneCallsToInsert.get(i).getTimestamp() + "', " + phoneCallsToInsert.get(i).getCallType() + "), ";
+                    }
+                    
+                    // Chop of the last comma, replace it with a semicolon.
+                    sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
+
+                    System.out.println(sql);
+
+                    new MySQLMethods().executeSQL(sql);
+                }
+            } catch (Exception e) {
+                System.out.println("Exception trying to create multiple inserts for phone calls: " + e);
+            }
+
             int endTimeMillis = (int) System.currentTimeMillis();
-            System.out.println("Finished backing up phone calls. That took " + secondsFormatted((endTimeMillis - beginTimeMillis)/1000) + ".");
+            System.out.println("Finished backing up phone calls. That took " + secondsFormatted((endTimeMillis - beginTimeMillis) / 1000) + ".");
 
             // Try to update the timestamp for the phone calls backup.
             new MySQLMethods().updateBackup("phone calls");
-            
+
         } catch (IOException ex) {
             System.out.println("IOException : " + ex);
         }
     }
 
-    public static boolean phoneNumberConsidered(String phoneNumber) {
-        for (int i = 0; i < phoneNumbers.size(); i++) {
-            if (phoneNumbers.get(i).equals(phoneNumber)) {
+    public static boolean phoneCallExists(String callTimestamp, long contactPhoneNumber) {
+        for (int i = 0; i < databasePhoneCalls.size(); i++) {
+            if (databasePhoneCalls.get(i).getContactPhoneNumber() == contactPhoneNumber && databasePhoneCalls.get(i).getTimestamp().equals(callTimestamp)) {
+                // Remove the phone call from the linked list (this will shorten the linked list so that next time we search through it, there's not as much to look at).
+                databasePhoneCalls.remove(i);
                 return true;
             }
         }
-
-        // We have now considered this phone number. Add it to the list.
-        phoneNumbers.add(phoneNumber);
         return false;
     }
 
@@ -135,7 +127,7 @@ class CallsBackup {
         sql = sql.replace("&amp;", "&");
         return sql;
     }
-    
+
     // secondsFormatted: converts seconds to hours, minutes, and seconds.
     // For example: input 95 seconds would return "1 minute, 35 seconds"
     public static String secondsFormatted(int seconds) {
@@ -147,12 +139,11 @@ class CallsBackup {
             seconds %= 60;               // Make seconds less than 60.
             int hours = minutes / 60;      // Extract hours out of seconds.
             minutes %= 60;               // Make minutes less than 60. 
-            
+
             String hoursString = "";
             String minutesString = "";
             String secondsString = "";
 
-            
             if (hours > 0) {
                 if (hours == 1) {
                     hoursString = hours + " hour, ";
@@ -185,5 +176,5 @@ class CallsBackup {
         }
         return null;
     }
-    
+
 }

@@ -13,6 +13,7 @@ import java.sql.Statement;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 class MySQLMethods {
 
@@ -636,6 +637,37 @@ class MySQLMethods {
         return textMessages;
     }
 
+    public static LinkedList<PhoneCall> getPhoneCalls() {
+        LinkedList<PhoneCall> phoneCalls = new LinkedList<PhoneCall>();
+        conn = new MySQLMethods().getConnection();
+        try {
+            // create our mysql database connection
+            String myDriver = "org.gjt.mm.mysql.Driver";
+            Class.forName(myDriver);
+
+            // Fetch all the phone calls from the database, sorting according to
+            // timestamp.
+            String query = "SELECT call_timestamp, contact_phone_number, duration, call_type FROM phone_calls ORDER BY call_timestamp ASC;";
+
+            // create the java statement
+            st = conn.createStatement();
+            // execute the query, and get a java resultset
+            rs = st.executeQuery(query);
+
+            // iterate through the java resultset
+            while (rs.next()) {
+                phoneCalls.add(new PhoneCall(rs.getString(1), rs.getLong(2), rs.getInt(3), rs.getInt(4)));
+            }
+        } catch (Exception e) {
+            System.out.println("Exception fetching text messages from the database: " + e.getMessage());
+        } finally {
+            closeResultSet(rs);
+            closeStatement(st);
+            closeConnection(conn);
+        }
+        return phoneCalls;
+    }
+    
     // Fetches the last backup timestamp for text messages or phone calls (type determines which one we're fetching the timestamp for)
     public static String getLastBackupDate(String type) {
         conn = getConnection();
@@ -739,8 +771,8 @@ class MySQLMethods {
         return false;
     }
 
-    public static Map<String, Contact> getContacts() {
-        Map<String, Contact> oldContacts = new TreeMap<>();
+    public static ConcurrentHashMap getContacts() {
+        ConcurrentHashMap oldContacts = new ConcurrentHashMap();
         conn = getConnection();
         try {
             // create our mysql database connection

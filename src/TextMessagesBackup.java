@@ -46,9 +46,7 @@ class TextMessagesBackup {
         // 
         // The phone_number is the unique key that will identify each contact.
         // The contact's name (person_name in the database) is the value in the below maps.
-        Map<String, Contact> xmlFilecontacts = new TreeMap<>();
-        Map<String, Contact> databaseContacts = new MySQLMethods().getContacts();
-        Map<String, Contact> duplicates = new TreeMap<>();
+        ContactsManager contactsManager = new ContactsManager();
 
         // Fetch the user's phone number. If it doesn't exist, ask that they provide it.
         long myPhoneNumber = new MySQLMethods().getMyPhoneNumber();
@@ -117,12 +115,8 @@ class TextMessagesBackup {
                         timestamp = new MySQLMethods().createSQLTimestamp(timestamp);
 
                         // Update the list of contacts.
-                        String key = phoneNumberLong + contactName;
                         Contact c = new Contact(phoneNumberLong, contactName);
-                        xmlFilecontacts.put(key, c);
-                        if (databaseContacts.containsKey(key)) { // This contact is already in the database. Add it to the duplicates.
-                            duplicates.put(key, c);
-                        }
+                        contactsManager.handleContact(c);
 
                         // Define sender and receiver phone numbers based on if the text was incoming or outgoing.
                         long senderPhoneNumber = phoneNumberLong;  // senderPhoneNumber - used only to check who sent a text message
@@ -215,12 +209,8 @@ class TextMessagesBackup {
                         mmsTimestamp = new MySQLMethods().createSQLTimestamp(mmsTimestamp);
 
                         // Update the list of contacts.
-                        String key = mmsPhoneNumber + mmsContactName;
                         Contact c = new Contact(mmsPhoneNumber, mmsContactName);
-                        xmlFilecontacts.put(key, c);
-                        if (databaseContacts.containsKey(key)) { // This contact is already in the database. Add it to the duplicates.
-                            duplicates.put(key, c);
-                        }
+                        contactsManager.handleContact(c);
 
                         // Check if the MMS message already exists. If so, then no need to collect other variables related to it.
                         try {
@@ -267,30 +257,15 @@ class TextMessagesBackup {
                     }
                 }
 
-                // Strip away duplicates so that we can see the different contact values between the database and the XML file. 
-                Set<Map.Entry<String, Contact>> entrySet3 = duplicates.entrySet();
-                for (Map.Entry<String, Contact> entry3 : entrySet3) {
-                    xmlFilecontacts.remove(entry3.getKey());
-                    databaseContacts.remove(entry3.getKey());
-                }
-
-                // Now, see if any of the "new" contacts are old contacts that were given a new name.
-                Set<Map.Entry<String, Contact>> entrySet4 = databaseContacts.entrySet();
-                for (Map.Entry<String, Contact> entry4 : entrySet4) {
-                    // If we find a contact with same phone number but different name in xmlFileContacts, then we just need to update the contact name.
-                    Set<Map.Entry<String, Contact>> entrySet5 = xmlFilecontacts.entrySet();
-                    for (Map.Entry<String, Contact> entry5 : entrySet5) {
-                        if (entry5.getValue().getPhoneNumber() == entry4.getValue().getPhoneNumber()) {
-                            new MySQLMethods().updateContactName(entry5.getValue());
-                            xmlFilecontacts.remove(entry5.getKey());
-                        }
-                    }
-                }
+                // Remove the duplicate contacts from both XML and Database maps.
+                contactsManager.removeDuplicates();
+                // Now, update any contacts that have had a name change.
+                contactsManager.updateContacts();
 
                 try {
                     // Before inserting any text messages, add any new contacts discovered in the XML file to the database.
-                    if (xmlFilecontacts.size() > 0) {
-                        Set<Map.Entry<String, Contact>> entrySet = xmlFilecontacts.entrySet();
+                    if (contactsManager.getXmlFileContacts().size() > 0) {
+                        Set<Map.Entry<String, Contact>> entrySet = contactsManager.getXmlFileContacts().entrySet();
                         String sql = "INSERT INTO contacts (phone_number, person_name) VALUES ";
                         for (Map.Entry<String, Contact> entry : entrySet) {
                             // Create the multiple insert string.
