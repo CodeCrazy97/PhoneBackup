@@ -255,7 +255,7 @@ class TextMessagesBackup {
 
                 // update the database with any new contacts
                 contactsManager.updateDatabase();
-                
+
                 // Now, loop over all the recipient phone numbers that appeared in the mms text messages. See if any are not in the database. Add them if they aren't.
                 Map<Long, Long> phoneNumbers = new MySQLMethods().getPhoneNumbers();
                 try {
@@ -301,6 +301,7 @@ class TextMessagesBackup {
 
                         new MySQLMethods().executeSQL(sql);
                         new MySQLMethods().executeSQL(sqlRecipients);
+                        System.out.println("Successfully backed up " + smsTextsToInsert.size() + " SMS messages!");
                     }
                 } catch (Exception e) {
                     System.out.println("Exception trying to create multiple inserts for text messages: " + e);
@@ -332,6 +333,7 @@ class TextMessagesBackup {
 
                         new MySQLMethods().executeSQL(sqlTextMessages);
                         new MySQLMethods().executeSQL(sqlTextMessageRecipients);
+                        System.out.println("Successfully backed up " + mmsTextsToInsert.size() + " MMS messages!");
                     }
                 } catch (Exception e) {
                     System.out.println("Exception trying to create multiple inserts for text messages: " + e);

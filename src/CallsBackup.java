@@ -106,6 +106,7 @@ class CallsBackup {
                     System.out.println(sql);
 
                     new MySQLMethods().executeSQL(sql);
+                    System.out.println("Successfully backed up " + phoneCallsToInsert.size() +  " phone calls!");
                 }
             } catch (Exception e) {
                 System.out.println("Exception trying to create multiple inserts for phone calls: " + e);

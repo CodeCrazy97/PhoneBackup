@@ -60,6 +60,11 @@ public class Main {
                 System.out.println("Enter the path to the text messages XML file: ");
                 String textMessageXMLFile = input.nextLine();
                 textMessageXMLFile = new MySQLMethods().fixFilePath(textMessageXMLFile);
+                
+                // Set the list of phone numbers to what was already considered with the text messages (do this solely for efficiency).
+                System.out.println("Enter the path to the phone calls XML file: ");
+                String phoneCallsXMLFile = input.nextLine();
+                
                 try {
                     String[] args1 = {textMessageXMLFile};
                     backup.main(args1);
@@ -70,10 +75,7 @@ public class Main {
                 System.out.println("Finished backing up text messages.");
                 System.out.println("Now we are going to backup the phone calls...\n");
                 CallsBackup backup2 = new CallsBackup();
-
-                // Set the list of phone numbers to what was already considered with the text messages (do this solely for efficiency).
-                System.out.println("Enter the path to the phone calls XML file: ");
-                String phoneCallsXMLFile = input.nextLine();
+                
                 phoneCallsXMLFile = new MySQLMethods().fixFilePath(phoneCallsXMLFile);
                 try {
                     String[] args1 = {phoneCallsXMLFile};
