@@ -25,7 +25,7 @@ public class Main {
             System.out.println("2. Backup phone calls.");
             System.out.println("3. Backup phone calls and text messages.");
             System.out.println("4. View your phone call records.");
-            System.out.println("5. View you text messages.");
+            System.out.println("*5. View you text messages.* (As of 1/19/2020, this feature is not supported. It will be implemented in the future.)");
             System.out.println("6. Clear the screen.");
             System.out.println("E. Exit this program.");
             System.out.println();
@@ -97,14 +97,15 @@ public class Main {
                     System.out.println("Exception trying to load phone records: " + ex);
                 }
             } else if (response.charAt(0) == '5') {
-                try {
-                    String basePath = new File("").getAbsolutePath();
-                    basePath = basePath.substring(0, basePath.lastIndexOf("\\"));  // Go back a directory.
-                    basePath = basePath.replace("\\", "/");                         // Replace backslashes with forward slashes.
-                    Runtime.getRuntime().exec(basePath + "/ViewData/SMSGui/bin/Debug/SMSGui.exe");
-                } catch (IOException ex) {
-                    System.out.println("Problem trying to load executable file for viewing text messages: " + ex);
-                }
+                System.out.println("This feature is not supported yet!");
+//                try {
+//                    String basePath = new File("").getAbsolutePath();
+//                    basePath = basePath.substring(0, basePath.lastIndexOf("\\"));  // Go back a directory.
+//                    basePath = basePath.replace("\\", "/");                         // Replace backslashes with forward slashes.
+//                    Runtime.getRuntime().exec(basePath + "/ViewData/SMSGui/bin/Debug/SMSGui.exe");
+//                } catch (IOException ex) {
+//                    System.out.println("Problem trying to load executable file for viewing text messages: " + ex);
+//                }
             } else if (response.charAt(0) == '6') {
                 cls();
             } else {  // Catch invalid input.
