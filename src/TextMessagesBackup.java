@@ -65,7 +65,7 @@ class TextMessagesBackup {
                 // that contain pictures or contain a lot of text) span multiple lines and are handled a little differently.
 
                 System.out.println();
-                System.out.println("Getting ready to backup text messages. This may take a few minutes.");
+                System.out.println("Getting ready to backup your text messages...");
 
                 int beginTimeMillis = (int) System.currentTimeMillis();
 
@@ -272,7 +272,6 @@ class TextMessagesBackup {
                             // Chop of the last comma, replace it with a semicolon.
                             sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
 
-                            System.out.println(sql);
                             new MySQLMethods().executeSQL(sql);
                         }
                     }
@@ -295,9 +294,6 @@ class TextMessagesBackup {
                         // Chop of the last comma, replace it with a semicolon.
                         sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
                         sqlRecipients = sqlRecipients.substring(0, sqlRecipients.lastIndexOf(",")) + ";";
-
-                        System.out.println(sql);
-                        System.out.println(sqlRecipients);
 
                         new MySQLMethods().executeSQL(sql);
                         new MySQLMethods().executeSQL(sqlRecipients);
@@ -328,9 +324,6 @@ class TextMessagesBackup {
                         sqlTextMessages = sqlTextMessages.substring(0, sqlTextMessages.lastIndexOf(",")) + ";";
                         sqlTextMessageRecipients = sqlTextMessageRecipients.substring(0, sqlTextMessageRecipients.lastIndexOf(",")) + ";";
 
-                        System.out.println(sqlTextMessages);
-                        System.out.println(sqlTextMessageRecipients);
-
                         new MySQLMethods().executeSQL(sqlTextMessages);
                         new MySQLMethods().executeSQL(sqlTextMessageRecipients);
                         System.out.println("Successfully backed up " + mmsTextsToInsert.size() + " MMS messages!");
@@ -340,7 +333,7 @@ class TextMessagesBackup {
                 }
 
                 int endTimeMillis = (int) System.currentTimeMillis();
-                System.out.println("Finished backing up text messages! That took " + secondsFormatted((endTimeMillis - beginTimeMillis) / 1000) + ".");
+                System.out.println("Finished backing up your text messages! That took " + secondsFormatted((endTimeMillis - beginTimeMillis) / 1000) + ".");
 
                 // Try to update the timestamp for the text messages backup.
                 new MySQLMethods().updateBackup("text messages");

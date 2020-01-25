@@ -71,9 +71,6 @@ public class Main {
                 } catch (Exception ex) {
                     System.out.println("Exception trying to backup text messages: " + ex.getMessage());
                 }
-                System.out.println("-----------------------------------------------");
-                System.out.println("Finished backing up text messages.");
-                System.out.println("Now we are going to backup the phone calls...\n");
                 CallsBackup backup2 = new CallsBackup();
                 
                 phoneCallsXMLFile = new MySQLMethods().fixFilePath(phoneCallsXMLFile);

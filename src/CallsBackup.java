@@ -34,7 +34,7 @@ class CallsBackup {
             String currLine;  //The line in the file currently being viewed by the program. The xml file is
             //broken up by lines; so, one line represents a single text message.
             System.out.println();
-            System.out.println("Getting ready to backup phone calls. Click OK to continue. This may take a few minutes.");
+            System.out.println("Getting ready to backup your phone calls...");
 
             databasePhoneCalls = new MySQLMethods().getPhoneCalls();
 
@@ -103,8 +103,6 @@ class CallsBackup {
                     // Chop of the last comma, replace it with a semicolon.
                     sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
 
-                    System.out.println(sql);
-
                     new MySQLMethods().executeSQL(sql);
                     System.out.println("Successfully backed up " + phoneCallsToInsert.size() +  " phone calls!");
                 }
@@ -113,7 +111,7 @@ class CallsBackup {
             }
 
             int endTimeMillis = (int) System.currentTimeMillis();
-            System.out.println("Finished backing up phone calls. That took " + secondsFormatted((endTimeMillis - beginTimeMillis) / 1000) + ".");
+            System.out.println("Finished backing up your phone calls. That took " + secondsFormatted((endTimeMillis - beginTimeMillis) / 1000) + ".");
 
             // Try to update the timestamp for the phone calls backup.
             new MySQLMethods().updateBackup("phone calls");

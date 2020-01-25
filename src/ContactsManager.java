@@ -76,7 +76,6 @@ public class ContactsManager {
                     // Chop of the last comma, replace it with a semicolon.
                     sql = sql.substring(0, sql.lastIndexOf(",")) + ";";
 
-                    System.out.println(sql);
                     new MySQLMethods().executeSQL(sql);
                 }
             }

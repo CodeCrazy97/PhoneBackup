@@ -413,7 +413,6 @@ class MySQLMethods {
 
                     PreparedStatement preparedStatement = conn.prepareStatement(sql);
                     preparedStatement.executeUpdate();
-                    System.out.println(sql);
                     preparedStatement.close();
                 } catch (SQLException sqle) {
                     System.out.println("SQL Exception trying to insert a new contact into the database: " + sqle);
