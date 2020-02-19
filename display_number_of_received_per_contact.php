@@ -1,7 +1,6 @@
-
 <?php
-	
-	
+
+	echo "<br><h3>The below table shows a breakdown of the number of texts sent/received per contact.</h3>";
 	
 	function start_table($border=1, $cellspacing=2, $cellpadding=2) {
 		echo "<table border=$border cellspacing=$cellspacing cellpadding=$cellpadding>\n";
@@ -13,9 +12,11 @@
 	}
 	
 	function create_ul($array) {
+		echo "<tr>";
 		while (list( , $value) = each ($array)) {
-			echo "<tr><td>$value</td></tr>\n";
+			echo "<td>$value</td>";			
 		}
+		echo "</tr>";
 	}
 
 	$mysqli = new mysqli("localhost", "root", "", "phone_backup");
@@ -40,5 +41,5 @@
 		$result->free();
 	}
 	$mysqli->close();
-
+	
 ?>
