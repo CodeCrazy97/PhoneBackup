@@ -1,6 +1,6 @@
 <?php
 
-	echo "<br><h3>The below table shows a breakdown of the number of texts sent/received per contact.</h3>";
+	echo "<br><h3>The below table shows a breakdown of the number of texts received per contact.</h3>";
 	
 	function start_table($border=1, $cellspacing=2, $cellpadding=2) {
 		echo "<table border=$border cellspacing=$cellspacing cellpadding=$cellpadding>\n";
