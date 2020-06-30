@@ -646,7 +646,7 @@ class MySQLMethods {
 
             // Fetch all the phone calls from the database, sorting according to
             // timestamp.
-            String query = "SELECT call_timestamp, contact_phone_number, duration, call_type FROM phone_calls ORDER BY call_timestamp ASC;";
+            String query = "SELECT DATE_FORMAT(call_timestamp, '%Y-%c-%e %k:%i:%s'), contact_phone_number, duration, call_type FROM phone_calls ORDER BY call_timestamp ASC;";
 
             // create the java statement
             st = conn.createStatement();

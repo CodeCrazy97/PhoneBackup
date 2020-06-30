@@ -49,7 +49,8 @@ class CallsBackup {
                 if (!currLine.contains("(Unknown)") && currLine.contains("duration")) {   // Line contains a call, and that call is from a contact.
 
                     try {
-                        long contactPhoneNumber = Long.parseLong(currLine.substring(currLine.indexOf("call number=\"") + 13, currLine.indexOf("\" duration")));
+                        String contactPhoneNumberStr = (currLine.substring(currLine.indexOf("call number=\"") + 13, currLine.indexOf("\" duration"))).replaceAll("\\D+","");  // Get the phone number from the line. Keep only the numbers in the phone number.
+                        long contactPhoneNumber = Long.parseLong(contactPhoneNumberStr);
                         String callTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                         callTimestamp = new MySQLMethods().createSQLTimestamp(callTimestamp);
 
