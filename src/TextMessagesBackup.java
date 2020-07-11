@@ -492,6 +492,14 @@ class TextMessagesBackup {
 
     // fixPhoneNumber: takes a string and strips characters typically found in a phone number so that the number becomes an integer.
     public static long fixPhoneNumber(String phoneNumber) throws NumberFormatException {
+        
+        // Some messages now come from a group. It appears that one message is coming from multiple people. 
+        // In this case, the first phone number is the actual sender. The phone numbers are deliminated by 
+        // the tilda character.
+        if (phoneNumber.contains("~")) {
+            phoneNumber = phoneNumber.substring(0, phoneNumber.indexOf("~"));
+        }
+        
         phoneNumber = phoneNumber.replace("\\", "");
         phoneNumber = phoneNumber.replace("-", "");
         phoneNumber = phoneNumber.replace(" ", "");
