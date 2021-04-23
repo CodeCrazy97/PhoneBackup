@@ -45,14 +45,12 @@ class TextMessagesBackup {
         ContactsManager contactsManager = new ContactsManager();
 
         // Fetch the user's phone number. If it doesn't exist, ask that they provide it.
-        long myPhoneNumber = new MySQLMethods().getMyPhoneNumber();
         try {
-            if (myPhoneNumber == -1) {
+            if (contactsManager.getMyPhoneNumber() == -1) {
                 System.out.println("It appears that you have not entered your phone number. Please enter your phone number, including the area code.");
                 Scanner input = new Scanner(System.in);
-                String myPhoneNumberStr = input.nextLine();
-                myPhoneNumber = fixPhoneNumber(myPhoneNumberStr);
-                new MySQLMethods().addMyPhoneNumber(myPhoneNumber);
+                String pNum = input.nextLine();
+                contactsManager.setMyPhoneNumber(Long.parseLong(pNum));
             }
         } catch (Exception e) {
             System.out.println("Something was wrong with the phone number you entered.");
@@ -115,12 +113,13 @@ class TextMessagesBackup {
                         contactsManager.handleContact(c);
 
                         // Define sender and receiver phone numbers based on if the text was incoming or outgoing.
-                        long senderPhoneNumber = phoneNumberLong;  // senderPhoneNumber - used only to check who sent a text message
-                        long recipientPhoneNumber = phoneNumberLong; // recipientPhoneNumber - used only to check who received the sms text message
+                        // chop off 
+                        long senderPhoneNumber = c.getPhoneNumber();  // senderPhoneNumber - used only to check who sent a text message
+                        long recipientPhoneNumber = c.getPhoneNumber(); // recipientPhoneNumber - used only to check who received the sms text message
                         if (currLine.contains("type=\"1\"")) {  // Text message was incoming.
-                            recipientPhoneNumber = myPhoneNumber;
+                            recipientPhoneNumber = contactsManager.getMyPhoneNumber();
                         } else { //Set my phone number as the phone number the message was sent from.
-                            senderPhoneNumber = myPhoneNumber;
+                            senderPhoneNumber = contactsManager.getMyPhoneNumber();
                         }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -182,7 +181,7 @@ class TextMessagesBackup {
                             mmsSenderPhoneNumber = mmsPhoneNumber;
                         } else {  // Outgoing message.
                             mmsIncoming = false;
-                            mmsSenderPhoneNumber = myPhoneNumber;
+                            mmsSenderPhoneNumber = contactsManager.getMyPhoneNumber();
                         }
 
                         if (!ignoreRecipientNames) {
@@ -196,7 +195,7 @@ class TextMessagesBackup {
                             }
                         } else { // Otherwise, the mmsContactName is actually a group of contact names, delimited by a comma. Do not try inserting these.
                             mmsContactName = "Me";
-                            mmsPhoneNumber = myPhoneNumber;
+                            mmsPhoneNumber = contactsManager.getMyPhoneNumber();
                         }
 
                         // Get message timestamp and text.
@@ -239,13 +238,30 @@ class TextMessagesBackup {
                     } else if (!skipMMS && currLine.contains("<addr address=\"") && currLine.contains("type=\"151\"")) {
                         // Fetch the recipient's phone number.
                         int indexOfPhoneNumberClosingQuotes = getIndexOfClosingQuotes(currLine, "<addr address=\"", '"');
-                        long phoneNumber = Long.parseLong(currLine.substring(currLine.indexOf("<addr address=\"") + 15, indexOfPhoneNumberClosingQuotes));
+                        String strPhoneNumber = currLine.substring(currLine.indexOf("<addr address=\"") + 15, indexOfPhoneNumberClosingQuotes);
+                        long phoneNumber;
+                        // strip out leading 1 from phone number
+                        phoneNumber = Long.parseLong(strPhoneNumber);
+                        phoneNumber = Long.parseLong(contactsManager.removeLeadingOne(phoneNumber));
                         mmsRecipients.add(phoneNumber);
                         allMMSRecipientPhoneNumbers.put(phoneNumber, phoneNumber);
+                    } else if (!skipMMS && currLine.contains("<addr address=\"") && currLine.contains("type=\"137\"")) {
+                        // Fetch the sender's phone number.
+                        int indexOfPhoneNumberClosingQuotes = getIndexOfClosingQuotes(currLine, "<addr address=\"", '"');
+                        String currPhoneNum = currLine.substring(currLine.indexOf("<addr address=\"") + 15, indexOfPhoneNumberClosingQuotes);
+                        // if the phone number is "insert-address-token", then the mms text came from my phone
+                        if (currPhoneNum.equals("insert-address-token")) {
+                            mmsSenderPhoneNumber = contactsManager.getMyPhoneNumber();
+                        } else {
+                            mmsSenderPhoneNumber = Long.parseLong(currPhoneNum);
+                        }
                     } else if (!skipMMS && currLine.contains("</mms>")) { //End of the MMS
                         // Create a new instance of MMS text message class.
                         if (mmsContactName != null && mmsSenderPhoneNumber != -1 && mmsTimestamp != null) {
                             Long[] dereferencedMMSRecipients = mmsRecipients.toArray(new Long[mmsRecipients.size()]); // Copy recipients over to an array (cannot directly pass the linked list).
+
+                            mmsSenderPhoneNumber = Long.parseLong(contactsManager.removeLeadingOne(mmsSenderPhoneNumber));
+
                             mmsTextsToInsert.add(new MMSTextMessage(mmsSenderPhoneNumber, mmsTimestamp, mmsMessageText, mmsContainsPicture, dereferencedMMSRecipients));
                         } else {
                             throw new Error("Something is wrong with the mms message. A variable is null.");
@@ -282,7 +298,6 @@ class TextMessagesBackup {
                 // Try to insert the text messages.
                 try {
                     if (smsTextsToInsert.size() > 0) {
-
                         String sql = "INSERT INTO text_messages (msg_text, sender_phone_number, msg_timestamp, text_only) VALUES ";
                         String sqlRecipients = "INSERT INTO text_message_recipients (contact_phone_number, text_message_id) VALUES ";
                         for (int i = 0; i < smsTextsToInsert.size(); i++) {
@@ -306,9 +321,11 @@ class TextMessagesBackup {
                 // Insert the MMS text messages into the database.
                 try {
                     if (mmsTextsToInsert.size() > 0) {
+                        String sqlSenders = "INSERT IGNORE INTO contacts (phone_number, person_name) VALUES ";
                         String sqlTextMessages = "INSERT INTO text_messages (msg_text, sender_phone_number, msg_timestamp, text_only) VALUES ";
                         String sqlTextMessageRecipients = "INSERT INTO text_message_recipients (contact_phone_number, text_message_id) VALUES ";
                         for (int i = 0; i < mmsTextsToInsert.size(); i++) {
+                            sqlSenders += "(" + mmsTextsToInsert.get(i).getSenderPhoneNumber() + ", '" + mmsTextsToInsert.get(i).getSenderPhoneNumber() + "'), ";
                             if (mmsTextsToInsert.get(i).containsPicture()) {
                                 sqlTextMessages += "('" + mmsTextsToInsert.get(i).getMessageText() + "', " + mmsTextsToInsert.get(i).getSenderPhoneNumber() + ", '" + mmsTextsToInsert.get(i).getTimestamp() + "', 0), ";
                             } else {
@@ -321,9 +338,11 @@ class TextMessagesBackup {
                             }
                         }
                         // Chop of the last comma, replace it with a semicolon.
+                        sqlSenders = sqlSenders.substring(0, sqlSenders.lastIndexOf(",")) + ";";
                         sqlTextMessages = sqlTextMessages.substring(0, sqlTextMessages.lastIndexOf(",")) + ";";
                         sqlTextMessageRecipients = sqlTextMessageRecipients.substring(0, sqlTextMessageRecipients.lastIndexOf(",")) + ";";
 
+                        new MySQLMethods().executeSQL(sqlSenders);
                         new MySQLMethods().executeSQL(sqlTextMessages);
                         new MySQLMethods().executeSQL(sqlTextMessageRecipients);
                         System.out.println("Successfully backed up " + mmsTextsToInsert.size() + " MMS messages!");
@@ -492,14 +511,14 @@ class TextMessagesBackup {
 
     // fixPhoneNumber: takes a string and strips characters typically found in a phone number so that the number becomes an integer.
     public static long fixPhoneNumber(String phoneNumber) throws NumberFormatException {
-        
-        // Some messages now come from a group. It appears that one message is coming from multiple people. 
-        // In this case, the first phone number is the actual sender. The phone numbers are deliminated by 
-        // the tilda character.
-        if (phoneNumber.contains("~")) {
-            phoneNumber = phoneNumber.substring(0, phoneNumber.indexOf("~"));
-        }
-        
+
+        // Hold off on fixing this bug. We are relying on an error being thrown by the tilda being present.
+//        // Some messages now come from a group. It appears that one message is coming from multiple people. 
+//        // In this case, the first phone number is the actual sender. The phone numbers are deliminated by 
+//        // the tilda character.
+//        if (phoneNumber.contains("~")) {
+//            phoneNumber = phoneNumber.substring(0, phoneNumber.indexOf("~"));
+//        }
         phoneNumber = phoneNumber.replace("\\", "");
         phoneNumber = phoneNumber.replace("-", "");
         phoneNumber = phoneNumber.replace(" ", "");

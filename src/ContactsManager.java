@@ -17,14 +17,41 @@ public class ContactsManager {
     private ConcurrentHashMap databaseContacts;
     private ConcurrentHashMap xmlFileContacts;
     private ConcurrentHashMap duplicates;
+    private long myPhoneNumber = -1;
 
     public ContactsManager() {
         databaseContacts = new MySQLMethods().getContacts();
         xmlFileContacts = new ConcurrentHashMap();
         duplicates = new ConcurrentHashMap();
+        myPhoneNumber = new MySQLMethods().getMyPhoneNumber();
     }
 
+    public long getMyPhoneNumber() {
+        return myPhoneNumber;
+    }
+
+    public void setMyPhoneNumber(long phoneNumber) {
+        new MySQLMethods().addMyPhoneNumber(phoneNumber);
+        myPhoneNumber = phoneNumber;
+    }
+
+    public static String removeLeadingOne(long phoneNum) {
+        // don't place phone numbers with a preceding 1 - ex: "18592001229" should be "8592001229"
+        String pNum = "" + phoneNum;
+        if (pNum.length() == 11 && pNum.charAt(0) == '1') {
+            return pNum.substring(1);
+        }
+        return pNum;
+    }
+    
     public void handleContact(Contact c) {
+        c.setPhoneNumber(Long.parseLong(removeLeadingOne(c.getPhoneNumber())));
+        
+        // no need to place my phone number in the database
+        if (("" + myPhoneNumber).equals("" + c.getPhoneNumber())) {
+            return;
+        }
+        
         String key = c.getPhoneNumber() + c.getPersonName();
         xmlFileContacts.put(key, c);
         if (databaseContacts.containsKey(key)) { // This contact is already in the database. Add it to the duplicates.

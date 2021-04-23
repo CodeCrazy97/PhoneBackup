@@ -710,7 +710,7 @@ class MySQLMethods {
                 preparedStatement.executeUpdate();
                 preparedStatement.close();
             } catch (SQLException sqle) {
-                System.out.println("SQL Exception: " + sqle);
+                System.out.println("SQL Exception: " + sqle + ".\nThe SQL statement: " + sql);
             } catch (ClassNotFoundException cnfe) {
                 System.out.println("ClassNotFoundException trying to insert my phone number into the database: " + cnfe);
             }
