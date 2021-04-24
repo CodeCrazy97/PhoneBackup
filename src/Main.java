@@ -31,12 +31,16 @@ public class Main {
             System.out.println();
             System.out.println("Enter your response below.");
             Scanner input = new Scanner(System.in);
-            response = "1"; // input.nextLine();
+            response = input.nextLine();
+            
+            if (response.length() == 0) {  // force a character into the string to avoid exceptions
+                response = "z";  
+            }
             
             if (response.charAt(0) == '1') {
                 TextMessagesBackup backup = new TextMessagesBackup();
                 System.out.println("Enter the path to the text messages XML file: ");
-                String textMessageXMLFile = "C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\sms-20201029111945-fixed.xml"; // input.nextLine();
+                String textMessageXMLFile = input.nextLine();  //"C:\\Users\\Ethan\\Documents\\Projects\\SMS\\XML Files\\sms-20201029111945-fixed.xml"; 
                 textMessageXMLFile = new MySQLMethods().fixFilePath(textMessageXMLFile);
                 try {
                     String[] args1 = {textMessageXMLFile};
@@ -44,11 +48,6 @@ public class Main {
                 } catch (Exception ex) {
                     System.out.println("Exception trying to backup text messages: " + ex.getMessage());
                 }
-                
-                System.out.println("EXITING....");
-                System.exit(0);
-                
-                
             } else if (response.charAt(0) == '2') {
                 CallsBackup backup = new CallsBackup();
                 System.out.println("Enter the path to the phone calls XML file: ");
