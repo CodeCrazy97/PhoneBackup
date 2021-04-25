@@ -51,6 +51,8 @@ class CallsBackup {
                     try {
                         String contactPhoneNumberStr = (currLine.substring(currLine.indexOf("call number=\"") + 13, currLine.indexOf("\" duration"))).replaceAll("\\D+","");  // Get the phone number from the line. Keep only the numbers in the phone number.
                         long contactPhoneNumber = Long.parseLong(contactPhoneNumberStr);
+                        contactPhoneNumber = Long.parseLong(contactsManager.removeLeadingOne(contactPhoneNumber));
+                        
                         String callTimestamp = currLine.substring(currLine.indexOf("readable_date=\"") + 15, currLine.indexOf("\" contact_name="));
                         callTimestamp = new MySQLMethods().createSQLTimestamp(callTimestamp);
 
